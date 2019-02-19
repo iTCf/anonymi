@@ -13,9 +13,8 @@ done
 
 
 # Convert bem
-
-
 #mris_convert $(path)/$(file)
+a
 
 fpath=${path}/${file}
 echo ${fpath}
