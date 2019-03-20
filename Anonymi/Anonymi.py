@@ -100,6 +100,45 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.outerSkullModel.setToolTip( "Pick outer skull model." )
     parametersFormLayout.addRow("Outer skull model: ", self.outerSkullModel)
 
+    # Control points
+    #
+    self.faceControl = slicer.qMRMLNodeComboBox()
+    self.faceControl.nodeTypes = ["vtkMRMLMarkupsFiducialNode"]
+    self.faceControl.selectNodeUponCreation = True
+    self.faceControl.addEnabled = False
+    self.faceControl.removeEnabled = False
+    self.faceControl.noneEnabled = False
+    self.faceControl.showHidden = False
+    self.faceControl.showChildNodeTypes = False
+    self.faceControl.setMRMLScene( slicer.mrmlScene )
+    self.faceControl.setToolTip( "Pick list of control points for the FACE." )
+    parametersFormLayout.addRow("Face control points: ", self.faceControl)
+
+    self.earRControl = slicer.qMRMLNodeComboBox()
+    self.earRControl.nodeTypes = ["vtkMRMLMarkupsFiducialNode"]
+    self.earRControl.selectNodeUponCreation = True
+    self.earRControl.addEnabled = False
+    self.earRControl.removeEnabled = False
+    self.earRControl.noneEnabled = False
+    self.earRControl.showHidden = False
+    self.earRControl.showChildNodeTypes = False
+    self.earRControl.setMRMLScene( slicer.mrmlScene )
+    self.earRControl.setToolTip( "Pick list of control points for the RIGHT EAR." )
+    parametersFormLayout.addRow("Right ear control points: ", self.earRControl)
+
+    self.earLControl = slicer.qMRMLNodeComboBox()
+    self.earLControl.nodeTypes = ["vtkMRMLMarkupsFiducialNode"]
+    self.earLControl.selectNodeUponCreation = True
+    self.earLControl.addEnabled = False
+    self.earLControl.removeEnabled = False
+    self.earLControl.noneEnabled = False
+    self.earLControl.showHidden = False
+    self.earLControl.showChildNodeTypes = False
+    self.earLControl.setMRMLScene( slicer.mrmlScene )
+    self.earLControl.setToolTip( "Pick list of control points for the LEFT EAR." )
+    parametersFormLayout.addRow("Left ear control points: ", self.earLControl)
+
+
     #
     # output volume selector
     #
@@ -155,7 +194,10 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     logic = AnonymiLogic()
     min_rand = self.rangeRandom.minimum
     max_rand = self.rangeRandom.maximum
-    logic.run(self.inputSelector.currentNode(), self.outerSkinModel.currentNode(), self.outerSkullModel.currentNode(), min_rand, max_rand)
+    logic.run(self.inputSelector.currentNode(), self.outerSkinModel.currentNode(),
+              self.outerSkullModel.currentNode(), self.faceControl.currentNode(),
+               self.earRControl.currentNode(), self.earLControl.currentNode(),
+               min_rand, max_rand)
 #
 # AnonymiLogic
 #
@@ -233,7 +275,8 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     annotationLogic = slicer.modules.annotations.logic()
     annotationLogic.CreateSnapShot(name, description, type, 1, imageData)
 
-  def run(self, inputVolume, outerSkinModel, outerSkullModel, min_rand, max_rand):
+  def run(self, inputVolume, outerSkinModel, outerSkullModel, faceControl,
+          earRControl, earLControl, min_rand, max_rand):
     """
     Run the actual algorithm
     """
@@ -246,8 +289,6 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     T1_anon = volumesLogic.CloneVolume(slicer.mrmlScene, inputVolume, 'T1_anon')
 
     # Create mask
-
-    # vclip = volumeclipwithmodel.widgetRepresentation().self().logic
     vclip = slicer.modules.volumeclipwithmodel.widgetRepresentation().self().logic
 
     vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, T1_anon)
@@ -259,13 +300,71 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
     logging.info('Applying mask')
 
-    mask_data = slicer.util.array('mask')
+    mask_data = slicer.util.arrayFromVolume(mask)
     mask_data = mask_data != 0
 
-    rand_dat = np.random.randint(50, 100, mask_data.sum())
+    # transform from RAS to Volume
+    transformRasToVolumeRas = vtk.vtkGeneralTransform()
+    slicer.vtkMRMLTransformNode.GetTransformBetweenNodes(None, T1_anon.GetParentTransformNode(), transformRasToVolumeRas)
 
-    T1_anon_data = slicer.util.array('T1_anon')
-    T1_anon_data[mask_data] = rand_dat
+    # get control points
+    controls = ['face', 'earR', 'earL']
+    coords = {k: [] for k in controls}
+    labels = {k: [] for k in controls}
+    vox_coords = {k: [] for k in controls}
+
+    for con, nod in zip(controls, [faceControl, earRControl, earLControl]):
+        n_markups = nod.GetNumberOfMarkups()
+        for m in np.arange(n_markups):
+            point_Ras = [0, 0, 0, 1]
+            nod.GetNthFiducialWorldCoordinates(m, point_Ras)
+            coords[con].append(point_Ras)
+            label = nod.GetNthFiducialLabel(m)
+            labels[con].append(label)
+
+            # If volume node is transformed, apply that transform to get volume's RAS coordinates
+            point_VolumeRas = transformRasToVolumeRas.TransformPoint(point_Ras[0:3])
+            volumeRasToIjk = vtk.vtkMatrix4x4()
+            T1_anon.GetRASToIJKMatrix(volumeRasToIjk)
+            point_Ijk = [0, 0, 0, 1]
+            volumeRasToIjk.MultiplyPoint(np.append(point_VolumeRas,1.0), point_Ijk)
+            point_Ijk = [ int(round(c)) for c in point_Ijk[0:3] ]
+            vox_coords[con].append(point_Ijk)
+
+    # create mask
+    mask_control = np.zeros((256, 256, 256), dtype=bool)
+
+    for con in controls:
+        i = vox_coords[con][labels[con].index('I')][1]
+        s = vox_coords[con][labels[con].index('S')][1]
+
+        if con == 'face':
+            r = vox_coords[con][labels[con].index('R')][0]
+            l = vox_coords[con][labels[con].index('L')][0]
+
+            x = min(vox_coords[con][labels[con].index('R')][2], vox_coords[con][labels[con].index('L')][2])
+            mask_control[x:256, s:i, r:l] = True
+        elif con == 'earR':
+            a = vox_coords[con][labels[con].index('A')][2]
+            p = vox_coords[con][labels[con].index('P')][2]
+
+            x = max(vox_coords[con][labels[con].index('A')][0], vox_coords[con][labels[con].index('P')][0])
+            mask_control[p:a, s:i, 0:x] = True
+        elif con == 'earL':
+            a = vox_coords[con][labels[con].index('A')][2]
+            p = vox_coords[con][labels[con].index('P')][2]
+
+            x = min(vox_coords[con][labels[con].index('A')][0], vox_coords[con][labels[con].index('P')][0])
+            mask_control[p:a, s:i, x:256] = True
+
+
+    mask_all = np.logical_and(mask_data, mask_control)
+
+    rand_dat = np.random.randint(50, 100, mask_all.sum())
+
+    # T1_anon_data = slicer.util.array('T1_anon')
+    T1_anon_data = slicer.util.arrayFromVolume(T1_anon)
+    T1_anon_data[mask_all] = rand_dat
 
     T1_anon.Modified()
 
