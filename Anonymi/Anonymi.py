@@ -275,6 +275,16 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     annotationLogic = slicer.modules.annotations.logic()
     annotationLogic.CreateSnapShot(name, description, type, 1, imageData)
 
+  def mask_dims(self, order, mask_control, min_R, max_R, min_A, max_A, min_S, max_S):
+      # TODO: add all combinations
+    if order == ['R', 'S', 'A']: # SLICER CHANGES THE AXIS ORDER!!!
+        mask_control[min_A:max_A, min_S:max_S, min_R:max_R] = True
+        # mask_control[min_R:max_R, min_S:max_S, min_A:max_A] = True
+    elif order == ['R', 'A', 'S']:
+        mask_control[min_S:max_S, min_A:max_A, min_R:max_R] = True
+        # mask_control[min_R:max_R, min_A:max_A, min_S:max_S] = True
+    return mask_control
+
   def run(self, inputVolume, outerSkinModel, outerSkullModel, faceControl,
           earRControl, earLControl, min_rand, max_rand):
     """
@@ -287,16 +297,20 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     # Clone T1
     volumesLogic = slicer.modules.volumes.logic()
     T1_anon = volumesLogic.CloneVolume(slicer.mrmlScene, inputVolume, 'T1_anon')
+    # mask1 = volumesLogic.CloneVolume(slicer.mrmlScene, T1_anon, 'mask1')
 
     # Create mask
     vclip = slicer.modules.volumeclipwithmodel.widgetRepresentation().self().logic
 
     vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, T1_anon)
+    # vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, mask1)
 
     logging.info('Creating mask')
     mask = volumesLogic.CloneVolume(slicer.mrmlScene, T1_anon, 'mask')
+    # mask = volumesLogic.CloneVolume(slicer.mrmlScene, mask1, 'mask')
 
     vclip.clipVolumeWithModel(T1_anon, outerSkullModel, False, 0, mask)
+    # vclip.clipVolumeWithModel(mask1, outerSkullModel, False, 0, mask)
 
     logging.info('Applying mask')
 
@@ -326,43 +340,100 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
             point_VolumeRas = transformRasToVolumeRas.TransformPoint(point_Ras[0:3])
             volumeRasToIjk = vtk.vtkMatrix4x4()
             T1_anon.GetRASToIJKMatrix(volumeRasToIjk)
+
             point_Ijk = [0, 0, 0, 1]
             volumeRasToIjk.MultiplyPoint(np.append(point_VolumeRas,1.0), point_Ijk)
             point_Ijk = [ int(round(c)) for c in point_Ijk[0:3] ]
             vox_coords[con].append(point_Ijk)
 
     # create mask
-    mask_control = np.zeros((256, 256, 256), dtype=bool)
+    shape = mask_data.shape
+    logging.info('Data shape: %s %s %s' % shape)
+
+    # find volume orientation
+    volumeIjkToRas = vtk.vtkMatrix4x4()
+    T1_anon.GetIJKToRASMatrix(volumeIjkToRas)
+    logging.info(volumeIjkToRas)
+    ijk_to_ras = [volumeIjkToRas.GetElement(x,y) for x in range(3) for y in range(3)]
+    ijk_to_ras = np.array(ijk_to_ras).reshape(3,3)
+    ijk_to_ras_round = np.rint(ijk_to_ras)
+
+    logging.info(ijk_to_ras)
+    logging.info(ijk_to_ras_round)
+
+    directions = {k: np.argmax(np.abs(ijk_to_ras_round[i,:])) for i, k in enumerate(['R', 'A', 'S'])}
+    signs = {k: ijk_to_ras_round[i, directions[k]] for i, k in enumerate(['R', 'A', 'S'])}
+    order = [k for i in range(3) for k in directions.keys() if directions[k] == i]
+    logging.info(directions)
+    logging.info(signs)
+    logging.info(order)
+
+
+    # mask_control = np.zeros((256, 256, 256), dtype=bool)
+    mask_control = np.zeros(shape, dtype=bool)
 
     for con in controls:
-        i = vox_coords[con][labels[con].index('I')][1]
-        s = vox_coords[con][labels[con].index('S')][1]
+        i = vox_coords[con][labels[con].index('I')][directions['S']]
+        s = vox_coords[con][labels[con].index('S')][directions['S']]
+
+
+        min_S = np.min((i,s)) # get span of the mask in the inferio-superior axis
+        max_S = np.max((i,s))
+
+        logging.info('min s %s' % min_S)
+        logging.info('max s %s' % max_S)
 
         if con == 'face':
-            r = vox_coords[con][labels[con].index('R')][0]
-            l = vox_coords[con][labels[con].index('L')][0]
+            r = vox_coords[con][labels[con].index('R')][directions['R']]
+            l = vox_coords[con][labels[con].index('L')][directions['R']]
 
-            x = min(vox_coords[con][labels[con].index('R')][2], vox_coords[con][labels[con].index('L')][2])
-            mask_control[x:256, s:i, r:l] = True
-        elif con == 'earR':
-            a = vox_coords[con][labels[con].index('A')][2]
-            p = vox_coords[con][labels[con].index('P')][2]
+            min_R = np.min((r,l)) # get span of the mask in the left-right axis
+            max_R = np.max((r,l))
 
-            x = max(vox_coords[con][labels[con].index('A')][0], vox_coords[con][labels[con].index('P')][0])
-            mask_control[p:a, s:i, 0:x] = True
-        elif con == 'earL':
-            a = vox_coords[con][labels[con].index('A')][2]
-            p = vox_coords[con][labels[con].index('P')][2]
+            logging.info('min r %s' % min_R)
+            logging.info('max r %s' % max_R)
 
-            x = min(vox_coords[con][labels[con].index('A')][0], vox_coords[con][labels[con].index('P')][0])
-            mask_control[p:a, s:i, x:256] = True
 
+
+            if signs['A'] > 0:
+                min_A = min(vox_coords[con][labels[con].index('R')][directions['A']], vox_coords[con][labels[con].index('L')][directions['A']])
+                max_A = shape[directions['A']] # determine from which end and to which point to span in the antero-posterior axiss
+            else:
+                max_A = max(vox_coords[con][labels[con].index('R')][directions['A']], vox_coords[con][labels[con].index('L')][directions['A']])
+                min_A = 0
+
+            logging.info('min a %s' % min_A)
+            logging.info('max a %s' % max_A)
+            # mask_control = self.mask_dims(order, mask_control, min_R, max_R, min_A, max_A, min_S, max_S)
+
+        else:
+            a = vox_coords[con][labels[con].index('A')][directions['A']]
+            p = vox_coords[con][labels[con].index('P')][directions['A']]
+
+
+            min_A = np.min((a, p))
+            max_A = np.max((a, p))
+
+            logging.info('min a %s' % min_A)
+            logging.info('max a %s' % max_A)
+
+            if ((con == 'earR') & (signs['R'] > 0)) or ((con == 'earL') & (signs['R'] < 0)):
+                min_R = min(vox_coords[con][labels[con].index('A')][directions['R']], vox_coords[con][labels[con].index('P')][directions['R']])
+                max_R = shape[directions['R']]
+            else:
+                max_R = max(vox_coords[con][labels[con].index('A')][directions['R']], vox_coords[con][labels[con].index('P')][directions['R']])
+                min_R = 0
+            logging.info('min r %s' % min_R)
+            logging.info('max r %s' % max_R)
+
+
+        mask_control = self.mask_dims(order, mask_control, min_R, max_R, min_A, max_A, min_S, max_S)
 
     mask_all = np.logical_and(mask_data, mask_control)
+    # TODO: range of random values
+    # rand_dat = np.random.randint(50, 100, mask_all.sum())
+    rand_dat = np.random.randint(500, 1000, mask_all.sum())
 
-    rand_dat = np.random.randint(50, 100, mask_all.sum())
-
-    # T1_anon_data = slicer.util.array('T1_anon')
     T1_anon_data = slicer.util.arrayFromVolume(T1_anon)
     T1_anon_data[mask_all] = rand_dat
 
