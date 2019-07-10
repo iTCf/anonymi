@@ -315,6 +315,11 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     logging.info('Applying mask')
 
     mask_data = slicer.util.arrayFromVolume(mask)
+
+    min_rand, max_rand = np.percentile(mask_data[mask_data !=0 ], [40 ,80])
+    logging.info(min_rand)
+    logging.info(max_rand)
+
     mask_data = mask_data != 0
 
     # transform from RAS to Volume
@@ -432,7 +437,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     mask_all = np.logical_and(mask_data, mask_control)
     # TODO: range of random values
     # rand_dat = np.random.randint(50, 100, mask_all.sum())
-    rand_dat = np.random.randint(500, 1000, mask_all.sum())
+    rand_dat = np.random.randint(min_rand, max_rand, mask_all.sum())
 
     T1_anon_data = slicer.util.arrayFromVolume(T1_anon)
     T1_anon_data[mask_all] = rand_dat
