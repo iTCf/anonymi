@@ -68,7 +68,7 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.inputSelector.showHidden = False
     self.inputSelector.showChildNodeTypes = False
     self.inputSelector.setMRMLScene( slicer.mrmlScene )
-    self.inputSelector.setToolTip( "Pick the MRI to be Anonymid." )
+    self.inputSelector.setToolTip( "Pick the MRI to be Anonymized." )
     parametersFormLayout.addRow("Input Volume: ", self.inputSelector)
 
     # outer_skin_surface selector
@@ -165,6 +165,14 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     parametersFormLayout.addRow("Range for random values", self.rangeRandom)
 
     #
+    # Auto control points
+    #
+    self.getControl = qt.QPushButton("Get control points")
+    self.getControl.toolTip = "Get control points automatically."
+    self.getControl.enabled = True
+    parametersFormLayout.addRow(self.getControl)
+
+    #
     # Apply Button
     #
     self.applyButton = qt.QPushButton("Apply")
@@ -173,6 +181,7 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     parametersFormLayout.addRow(self.applyButton)
 
     # connections
+    self.getControl.connect('clicked(bool)', self.onGetControl)
     self.applyButton.connect('clicked(bool)', self.onApplyButton)
     self.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
     # self.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
@@ -198,6 +207,13 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
               self.outerSkullModel.currentNode(), self.faceControl.currentNode(),
                self.earRControl.currentNode(), self.earLControl.currentNode(),
                min_rand, max_rand)
+
+  def onGetControl(self):
+      logic = AnonymiLogic()
+      logic.getControl(self.outerSkinModel.currentNode(),
+                       self.inputSelector.currentNode())
+
+
 #
 # AnonymiLogic
 #
@@ -275,6 +291,77 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     annotationLogic = slicer.modules.annotations.logic()
     annotationLogic.CreateSnapShot(name, description, type, 1, imageData)
 
+  def find_closest_point_coords(self, cloud, point):
+    dist_all = np.sqrt(np.sum((cloud - point) ** 2, axis=1))
+    min_dist_ix = np.argmin(dist_all)
+    min_dist_coords = cloud[min_dist_ix]
+    return min_dist_coords
+
+  def getControl(self, outerSkinModel, inputVolume):
+    # import pycpd
+    import Elastix
+    print('--> Getting control points')
+    controls = ['face', 'earR', 'earL']
+
+    # check if templates loaded
+    try:
+        print('--> Using already loaded template')
+        template_control_node = slicer.util.getNode('template_face_control*')
+        template_mri_node = slicer.util.getNode('template_mri*')
+        template_control_nodes = {k : slicer.util.getNode('template_%s_control*' % k) for k in controls} # TODO: control names on variable
+
+    except:
+        print('--> Loading template')
+        template_mri_fname = '/home/eze/scripts/anonymi/Anonymi/Resources/template_mri.nii.gz'
+        # template_control_fname = '/home/eze/scripts/anonymi/Anonymi/Resources/template_face_control.fcsv'
+        template_control_fname = '/home/eze/scripts/anonymi/Anonymi/Resources/template_%s_control.fcsv'
+        _ = [ slicer.util.loadMarkupsFiducialList(template_control_fname % k) for k in controls]
+        template_mri_node = slicer.util.loadVolume(template_mri_fname)
+        template_control = slicer.util.loadMarkupsFiducialList(template_control_fname)
+
+    template_control_nodes = {k : slicer.util.getNode('template_%s_control*' % k) for k in controls}
+
+    print('--> Running Elastix Registration')
+
+    elastix_logic = Elastix.ElastixLogic()
+    outputVolume = slicer.vtkMRMLScalarVolumeNode()
+    slicer.mrmlScene.AddNode(outputVolume)
+    outputVolume.CreateDefaultDisplayNodes()
+
+    outputTransform = slicer.vtkMRMLTransformNode()
+
+    parameterFilenames = elastix_logic.getRegistrationPresets()[0][5] # 5 = RegistrationPresets_ParameterFilenames
+    elastix_logic.registerVolumes(inputVolume, template_mri_node,
+                                  parameterFilenames = parameterFilenames,
+                                  outputVolumeNode = outputVolume,
+                                  outputTransformNode = outputTransform)
+    outputVolume.Modified()
+    slicer.mrmlScene.AddNode(outputTransform)
+
+    # TODO: create new markups node instead of modifying the original (for batch runs)
+
+    _ = [template_control_nodes[k].SetAndObserveTransformNodeID(outputTransform.GetID()) for k in controls]
+
+    # harden the registration on the fiducials
+    _ = [template_control_nodes[k].SetAndObserveTransformNodeID(outputTransform.GetID()) for k in controls]
+
+    trans_logic = slicer.vtkSlicerTransformLogic()
+    _ = [trans_logic.hardenTransform(template_control_nodes[k]) for k in controls]
+
+    # project to the skin surface
+    surf_arr = slicer.util.arrayFromModelPoints(outerSkinModel)
+
+    for k in template_control_nodes.keys():
+        numFids = template_control_nodes[k].GetNumberOfFiducials()
+        for i in range(numFids):
+            world = [0,0,0,1]
+            template_control_nodes[k].GetNthFiducialWorldCoordinates(i,world)
+            print(world)
+            proj_coords = self.find_closest_point_coords(surf_arr, world[:3])
+            template_control_nodes[k].SetNthFiducialPositionFromArray(i, proj_coords)
+    print('--> Control Points Registraion Finished')
+
+
   def mask_dims(self, order, mask_control, min_R, max_R, min_A, max_A, min_S, max_S):
       # TODO: add all combinations
     if order == ['R', 'S', 'A']: # SLICER CHANGES THE AXIS ORDER!!!
@@ -302,14 +389,16 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     # Create mask
     vclip = slicer.modules.volumeclipwithmodel.widgetRepresentation().self().logic
 
-    vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, T1_anon)
+    # vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, T1_anon) # changed in clipmodel module
+    vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, False, 255, T1_anon)
     # vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, mask1)
 
     logging.info('Creating mask')
     mask = volumesLogic.CloneVolume(slicer.mrmlScene, T1_anon, 'mask')
     # mask = volumesLogic.CloneVolume(slicer.mrmlScene, mask1, 'mask')
 
-    vclip.clipVolumeWithModel(T1_anon, outerSkullModel, False, 0, mask)
+    # vclip.clipVolumeWithModel(T1_anon, outerSkullModel, False, 0, mask)
+    vclip.clipVolumeWithModel(T1_anon, outerSkullModel, False, 255, True, 0, mask)
     # vclip.clipVolumeWithModel(mask1, outerSkullModel, False, 0, mask)
 
     logging.info('Applying mask')
@@ -382,7 +471,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         s = vox_coords[con][labels[con].index('S')][directions['S']]
 
 
-        min_S = np.min((i,s)) # get span of the mask in the inferio-superior axis
+        min_S = np.min((i,s)) # get span of the mask in the inferior-superior axis
         max_S = np.max((i,s))
 
         logging.info('min s %s' % min_S)
@@ -398,11 +487,9 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
             logging.info('min r %s' % min_R)
             logging.info('max r %s' % max_R)
 
-
-
             if signs['A'] > 0:
                 min_A = min(vox_coords[con][labels[con].index('R')][directions['A']], vox_coords[con][labels[con].index('L')][directions['A']])
-                max_A = shape[directions['A']] # determine from which end and to which point to span in the antero-posterior axiss
+                max_A = shape[directions['A']] # determine from which end and to which point to span in the antero-posterior axis
             else:
                 max_A = max(vox_coords[con][labels[con].index('R')][directions['A']], vox_coords[con][labels[con].index('L')][directions['A']])
                 min_A = 0
@@ -414,7 +501,6 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         else:
             a = vox_coords[con][labels[con].index('A')][directions['A']]
             p = vox_coords[con][labels[con].index('P')][directions['A']]
-
 
             min_A = np.min((a, p))
             max_A = np.max((a, p))
@@ -430,7 +516,6 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
                 min_R = 0
             logging.info('min r %s' % min_R)
             logging.info('max r %s' % max_R)
-
 
         mask_control = self.mask_dims(order, mask_control, min_R, max_R, min_A, max_A, min_S, max_S)
 
