@@ -22,7 +22,8 @@ done
 
 # Create transform file, from surface to mri space
 echo "Creating transform file"
-mri=${path}/T1.mgz
+# mri=${path}/T1.mgz
+mri=${fname_mri}
 cras=$(mri_info ${mri} --cras)
 
 cras_array=($cras)

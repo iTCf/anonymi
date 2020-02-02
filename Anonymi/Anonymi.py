@@ -18,7 +18,7 @@ class Anonymi(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "Anonymi" # TODO make this more human readable by adding spaces
+    self.parent.title = "Anonymi"
     self.parent.categories = ["Anonymization"]
     self.parent.dependencies = []
     self.parent.contributors = ["John Doe (AnyWare Corp.)"] # replace with "Firstname Lastname (Organization)"
@@ -50,7 +50,7 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     # Parameters Area
     #
     parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-    parametersCollapsibleButton.text = "Parameters"
+    parametersCollapsibleButton.text = "Single Subject"
     self.layout.addWidget(parametersCollapsibleButton)
 
     # Layout within the dummy collapsible button
@@ -186,11 +186,41 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
     # self.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
 
+
+    # Refresh Apply button state
+    self.onSelect() # ??
+
+    # Batch Area
+    #
+    self.batchFiles = ''
+    self.batchFolderText = qt.QLineEdit()
+    self.batchFolderText.setDisabled(True)
+
+    batchCollapsibleButton = ctk.ctkCollapsibleButton()
+    batchCollapsibleButton.text = "Batch Processing"
+    self.layout.addWidget(batchCollapsibleButton)
+
+    # Layout within the dummy collapsible button
+    batchFormLayout = qt.QFormLayout(batchCollapsibleButton)
+
+    self.batchFilesSelector = qt.QPushButton("Choose Batch Files")
+    self.batchFilesSelector.toolTip = "Select the files for batch running"
+    self.batchFilesSelector.enabled = True
+
+    self.batchRun = qt.QPushButton("Run Batch")
+    self.batchRun.toolTip = "Run Batch Process"
+    self.batchRun.enabled = True # TODO: enable run batch when files are selected
+
+    batchFormLayout.addRow(self.batchFilesSelector)
+    batchFormLayout.addRow(self.batchFolderText)
+    batchFormLayout.addRow(self.batchRun)
+
+    self.batchFilesSelector.connect('clicked(bool)', self.onSelectBatchFiles)
+    self.batchRun.connect('clicked(bool)', self.onRunBatch)
+
     # Add vertical spacer
     self.layout.addStretch(1)
 
-    # Refresh Apply button state
-    self.onSelect()
 
   def cleanup(self):
     pass
@@ -203,16 +233,53 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     logic = AnonymiLogic()
     min_rand = self.rangeRandom.minimum
     max_rand = self.rangeRandom.maximum
+    logic.subj = self.inputSelector.currentNode().GetName()
     logic.run(self.inputSelector.currentNode(), self.outerSkinModel.currentNode(),
               self.outerSkullModel.currentNode(), self.faceControl.currentNode(),
-               self.earRControl.currentNode(), self.earLControl.currentNode(),
-               min_rand, max_rand)
+               self.earRControl.currentNode(), self.earLControl.currentNode())
+
 
   def onGetControl(self):
-      logic = AnonymiLogic()
-      logic.getControl(self.outerSkinModel.currentNode(),
-                       self.inputSelector.currentNode())
+    logic = AnonymiLogic()
+    logic.getControl(self.outerSkinModel.currentNode(),
+                     self.inputSelector.currentNode())
 
+
+  def onSelectBatchFiles(self):
+    # batchFolder = qt.QFileDialog.getExistingDirectory(None, "Choose folder", "~",
+    #                                                   qt.QFileDialog.ShowDirsOnly)
+    # batchFolder = qt.QFileDialog.getExistingDirectory(None, "Choose folder", "~")
+    batchFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~", "Skin surfaces (*skin*.vtk)") # use vtk to avoid specyfing mri file type
+
+    self.batchFiles = batchFiles
+
+    # self.batchFolderText.setText(batchFolder)
+
+  def onRunBatch(self):
+      print('---> Running Batch')
+      logic = AnonymiLogic()
+
+      for f in self.batchFiles:
+          print('------> Input file: %s' % os.path.split(f)[1])
+
+          logic.getFileNames(f)
+          print(logic.fnames)
+          # pretty logging
+
+          logic.loadFiles()
+
+          logic.subj_skin_node.SetAndObserveTransformNodeID(logic.subj_trans_node.GetID())
+          logic.subj_skull_node.SetAndObserveTransformNodeID(logic.subj_trans_node.GetID())
+
+          trans_logic = slicer.vtkSlicerTransformLogic()
+          trans_logic.hardenTransform(logic.subj_skin_node)
+          trans_logic.hardenTransform(logic.subj_skull_node)
+
+          logic.getControl(logic.subj_skin_node, logic.subj_mri_node)
+          logic.run(logic.subj_mri_node, logic.subj_skin_node,
+                    logic.subj_skull_node, logic.subj_control_nodes['face'],
+                     logic.subj_control_nodes['earR'], logic.subj_control_nodes['earL'])
+          logic.cleanSubjFiles()
 
 #
 # AnonymiLogic
@@ -227,6 +294,12 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
   Uses ScriptedLoadableModuleLogic base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
+
+  # TODO: Snapshots
+  # TODO: Better interface for batch files to run
+  # TODO: Manual (pdf) & Logo
+  # TODO: Pretty logging
+  # TODO: fix CLI
 
   def hasImageData(self,volumeNode):
     """This is an example logic method that
@@ -303,23 +376,32 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     print('--> Getting control points')
     controls = ['face', 'earR', 'earL']
 
-    # check if templates loaded
+    # check if templates are loaded
     try:
         print('--> Using already loaded template')
-        template_control_node = slicer.util.getNode('template_face_control*')
+        # template_control_node = slicer.util.getNode('template_face_control*')
         template_mri_node = slicer.util.getNode('template_mri*')
-        template_control_nodes = {k : slicer.util.getNode('template_%s_control*' % k) for k in controls} # TODO: control names on variable
+        template_control_nodes = {k : slicer.util.getNode('template_%s_control*' % k) for k in controls}
 
     except:
         print('--> Loading template')
-        template_mri_fname = '/home/eze/scripts/anonymi/Anonymi/Resources/template_mri.nii.gz'
+        template_mri_fname = '/home/eze/scripts/anonymi/Anonymi/Resources/template_mri.nii.gz' # TODO: template location automatic
         # template_control_fname = '/home/eze/scripts/anonymi/Anonymi/Resources/template_face_control.fcsv'
         template_control_fname = '/home/eze/scripts/anonymi/Anonymi/Resources/template_%s_control.fcsv'
         _ = [ slicer.util.loadMarkupsFiducialList(template_control_fname % k) for k in controls]
-        template_mri_node = slicer.util.loadVolume(template_mri_fname)
-        template_control = slicer.util.loadMarkupsFiducialList(template_control_fname)
+        template_mri_node = slicer.util.loadVolume(template_mri_fname, returnNode=True)[1]
+        template_control = slicer.util.loadMarkupsFiducialList(template_control_fname) # check load control nodes
+        template_control_nodes = {k : slicer.util.getNode('template_%s_control*' % k) for k in controls}
 
-    template_control_nodes = {k : slicer.util.getNode('template_%s_control*' % k) for k in controls}
+    # TODO: clone markups
+    shNode = slicer.vtkMRMLSubjectHierarchyNode.GetSubjectHierarchyNode(slicer.mrmlScene)
+
+    subj_control_nodes = {}
+    for c in controls:
+        itemIDToClone = shNode.GetItemByDataNode(template_control_nodes[c])
+        clonedItemID = slicer.modules.subjecthierarchy.logic().CloneSubjectHierarchyItem(shNode, itemIDToClone)
+        clonedNode = shNode.GetItemDataNode(clonedItemID)
+        subj_control_nodes[c] = clonedNode
 
     print('--> Running Elastix Registration')
 
@@ -329,7 +411,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     outputVolume.CreateDefaultDisplayNodes()
 
     outputTransform = slicer.vtkMRMLTransformNode()
-
+    print(type(inputVolume))
     parameterFilenames = elastix_logic.getRegistrationPresets()[0][5] # 5 = RegistrationPresets_ParameterFilenames
     elastix_logic.registerVolumes(inputVolume, template_mri_node,
                                   parameterFilenames = parameterFilenames,
@@ -338,29 +420,81 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     outputVolume.Modified()
     slicer.mrmlScene.AddNode(outputTransform)
 
-    # TODO: create new markups node instead of modifying the original (for batch runs)
-
-    _ = [template_control_nodes[k].SetAndObserveTransformNodeID(outputTransform.GetID()) for k in controls]
-
     # harden the registration on the fiducials
-    _ = [template_control_nodes[k].SetAndObserveTransformNodeID(outputTransform.GetID()) for k in controls]
+    _ = [subj_control_nodes[k].SetAndObserveTransformNodeID(outputTransform.GetID()) for k in controls]
 
     trans_logic = slicer.vtkSlicerTransformLogic()
-    _ = [trans_logic.hardenTransform(template_control_nodes[k]) for k in controls]
+    _ = [trans_logic.hardenTransform(subj_control_nodes[k]) for k in controls]
 
     # project to the skin surface
     surf_arr = slicer.util.arrayFromModelPoints(outerSkinModel)
 
     for k in template_control_nodes.keys():
-        numFids = template_control_nodes[k].GetNumberOfFiducials()
+        numFids = subj_control_nodes[k].GetNumberOfFiducials()
         for i in range(numFids):
             world = [0,0,0,1]
-            template_control_nodes[k].GetNthFiducialWorldCoordinates(i,world)
+            subj_control_nodes[k].GetNthFiducialWorldCoordinates(i,world)
             print(world)
             proj_coords = self.find_closest_point_coords(surf_arr, world[:3])
-            template_control_nodes[k].SetNthFiducialPositionFromArray(i, proj_coords)
+            subj_control_nodes[k].SetNthFiducialPositionFromArray(i, proj_coords)
     print('--> Control Points Registraion Finished')
+    self.subj_control_nodes = subj_control_nodes
+    slicer.mrmlScene.RemoveNode(outputVolume)
+    slicer.mrmlScene.RemoveNode(outputTransform)
 
+
+  def getFileNames(self, skinFname):
+    fnames = {}
+    # TODO: how to get all the filenames (volume ext?)
+    basename = skinFname.replace('_outer_skin_surface.vtk', '')
+    fdir = os.path.split(skinFname)[0]
+    all_files = os.listdir(fdir)
+    scode = os.path.split(basename)[1]
+    sfiles = [f for f in all_files if f.startswith(scode)]
+    sfiles = [os.path.join(fdir, f) for f in sfiles]
+    fnames['skin'] = skinFname
+    fnames['skull'] = basename + '_outer_skull_surface.vtk'
+    fnames['trans'] = basename + '_bem2mri.tfm'
+    fnames['mri'] = [f for f in sfiles if f not in fnames.values()]
+
+    if len(fnames['mri']) != 1:
+     print(fnames)
+     print('Inconsistent number of files')
+     return 0 # check correct return ?
+    else:
+        fnames['mri'] = fnames['mri'][0]
+    self.subj = scode
+    self.fnames = fnames
+
+  def loadFiles(self):
+      try:
+          print('Loading files')
+          print(self.fnames)
+          self.subj_mri_node = slicer.util.loadVolume(self.fnames['mri'], returnNode=True)[1]
+          self.subj_skin_node = slicer.util.loadModel(self.fnames['skin'], returnNode=True)[1]
+          self.subj_skull_node = slicer.util.loadModel(self.fnames['skull'], returnNode=True)[1]
+          self.subj_trans_node = slicer.util.loadTransform(self.fnames['trans'], returnNode=True)[1]
+
+
+          # self.subj_skin_node = slicer.util.getNode('%s*skin*')
+          # self.subj_skull_node = slicer.util.getNode('%s*skull*')
+          # self.subj_trans_node = slicer.util.getNode('%s*bem2mri*')
+      except Exception as e:
+          print('Unable to load files') # error check ?
+          print(e)
+
+  def cleanSubjFiles(self):
+      nodes_to_del = [self.subj_mri_node, self.subj_skin_node,
+                      self.subj_skull_node, self.subj_trans_node,
+                      self.subj_mri_anon_node, self.subj_control_nodes['face'],
+                      self.subj_control_nodes['earR'],
+                      self.subj_control_nodes['earL']]
+
+
+      for n in nodes_to_del:
+          slicer.mrmlScene.RemoveNode(n)
+
+      pass # TODO: clean subject files after completition
 
   def mask_dims(self, order, mask_control, min_R, max_R, min_A, max_A, min_S, max_S):
       # TODO: add all combinations
@@ -373,7 +507,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     return mask_control
 
   def run(self, inputVolume, outerSkinModel, outerSkullModel, faceControl,
-          earRControl, earLControl, min_rand, max_rand):
+          earRControl, earLControl):
     """
     Run the actual algorithm
     """
@@ -383,23 +517,17 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
     # Clone T1
     volumesLogic = slicer.modules.volumes.logic()
-    T1_anon = volumesLogic.CloneVolume(slicer.mrmlScene, inputVolume, 'T1_anon')
-    # mask1 = volumesLogic.CloneVolume(slicer.mrmlScene, T1_anon, 'mask1')
+    T1_anon = volumesLogic.CloneVolume(slicer.mrmlScene, inputVolume, self.subj + '_anonymi')
 
     # Create mask
     vclip = slicer.modules.volumeclipwithmodel.widgetRepresentation().self().logic
 
-    # vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, T1_anon) # changed in clipmodel module
     vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, False, 255, T1_anon)
-    # vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, mask1)
 
     logging.info('Creating mask')
     mask = volumesLogic.CloneVolume(slicer.mrmlScene, T1_anon, 'mask')
-    # mask = volumesLogic.CloneVolume(slicer.mrmlScene, mask1, 'mask')
 
-    # vclip.clipVolumeWithModel(T1_anon, outerSkullModel, False, 0, mask)
     vclip.clipVolumeWithModel(T1_anon, outerSkullModel, False, 255, True, 0, mask)
-    # vclip.clipVolumeWithModel(mask1, outerSkullModel, False, 0, mask)
 
     logging.info('Applying mask')
 
@@ -462,14 +590,11 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     logging.info(signs)
     logging.info(order)
 
-
-    # mask_control = np.zeros((256, 256, 256), dtype=bool)
     mask_control = np.zeros(shape, dtype=bool)
 
     for con in controls:
         i = vox_coords[con][labels[con].index('I')][directions['S']]
         s = vox_coords[con][labels[con].index('S')][directions['S']]
-
 
         min_S = np.min((i,s)) # get span of the mask in the inferior-superior axis
         max_S = np.max((i,s))
@@ -496,7 +621,6 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
             logging.info('min a %s' % min_A)
             logging.info('max a %s' % max_A)
-            # mask_control = self.mask_dims(order, mask_control, min_R, max_R, min_A, max_A, min_S, max_S)
 
         else:
             a = vox_coords[con][labels[con].index('A')][directions['A']]
@@ -520,17 +644,17 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         mask_control = self.mask_dims(order, mask_control, min_R, max_R, min_A, max_A, min_S, max_S)
 
     mask_all = np.logical_and(mask_data, mask_control)
-    # TODO: range of random values
-    # rand_dat = np.random.randint(50, 100, mask_all.sum())
     rand_dat = np.random.randint(min_rand, max_rand, mask_all.sum())
 
     T1_anon_data = slicer.util.arrayFromVolume(T1_anon)
     T1_anon_data[mask_all] = rand_dat
 
     T1_anon.Modified()
-
+    # TODO: save only for batch (put on function)
+    slicer.util.saveNode(T1_anon, self.fnames['mri'].replace(self.subj, self.subj + '_anonymi'))
+    slicer.mrmlScene.RemoveNode(mask)
+    self.subj_mri_anon_node = T1_anon
     logging.info('Processing completed')
-
     return True
 
 
