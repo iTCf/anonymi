@@ -236,7 +236,8 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     logic.subj = self.inputSelector.currentNode().GetName()
     logic.run(self.inputSelector.currentNode(), self.outerSkinModel.currentNode(),
               self.outerSkullModel.currentNode(), self.faceControl.currentNode(),
-               self.earRControl.currentNode(), self.earLControl.currentNode())
+               self.earRControl.currentNode(), self.earLControl.currentNode(),
+               isBatch=False)
 
 
   def onGetControl(self):
@@ -278,7 +279,8 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
           logic.getControl(logic.subj_skin_node, logic.subj_mri_node)
           logic.run(logic.subj_mri_node, logic.subj_skin_node,
                     logic.subj_skull_node, logic.subj_control_nodes['face'],
-                     logic.subj_control_nodes['earR'], logic.subj_control_nodes['earL'])
+                     logic.subj_control_nodes['earR'], logic.subj_control_nodes['earL'],
+                     isBatch=True)
           logic.cleanSubjFiles()
 
 #
@@ -507,7 +509,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     return mask_control
 
   def run(self, inputVolume, outerSkinModel, outerSkullModel, faceControl,
-          earRControl, earLControl):
+          earRControl, earLControl, isBatch):
     """
     Run the actual algorithm
     """
@@ -650,8 +652,9 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     T1_anon_data[mask_all] = rand_dat
 
     T1_anon.Modified()
-    # TODO: save only for batch (put on function)
-    slicer.util.saveNode(T1_anon, self.fnames['mri'].replace(self.subj, self.subj + '_anonymi'))
+    
+    if isBatch:
+        slicer.util.saveNode(T1_anon, self.fnames['mri'].replace(self.subj, self.subj + '_anonymi'))
     slicer.mrmlScene.RemoveNode(mask)
     self.subj_mri_anon_node = T1_anon
     logging.info('Processing completed')
