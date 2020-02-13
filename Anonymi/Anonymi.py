@@ -138,32 +138,6 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.earLControl.setToolTip( "Pick list of control points for the LEFT EAR." )
     parametersFormLayout.addRow("Left ear control points: ", self.earLControl)
 
-
-    #
-    # output volume selector
-    #
-    # self.outputSelector = slicer.qMRMLNodeComboBox()
-    # self.outputSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
-    # self.outputSelector.selectNodeUponCreation = True
-    # self.outputSelector.addEnabled = True
-    # self.outputSelector.removeEnabled = True
-    # self.outputSelector.noneEnabled = True
-    # self.outputSelector.showHidden = False
-    # self.outputSelector.showChildNodeTypes = False
-    # self.outputSelector.setMRMLScene( slicer.mrmlScene )
-    # self.outputSelector.setToolTip( "Pick the output to the algorithm." )
-    # parametersFormLayout.addRow("Output Volume: ", self.outputSelector)
-
-    #
-    # threshold value
-    #
-    self.rangeRandom = ctk.ctkRangeWidget()
-    self.rangeRandom.maximum = 200.
-    self.rangeRandom.minimum = 0.
-    self.rangeRandom.setValues(50., 100.)
-    self.rangeRandom.setToolTip("Range for random values generation")
-    parametersFormLayout.addRow("Range for random values", self.rangeRandom)
-
     #
     # Auto control points
     #
@@ -231,8 +205,6 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 
   def onApplyButton(self):
     logic = AnonymiLogic()
-    min_rand = self.rangeRandom.minimum
-    max_rand = self.rangeRandom.maximum
     logic.subj = self.inputSelector.currentNode().GetName()
     logic.run(self.inputSelector.currentNode(), self.outerSkinModel.currentNode(),
               self.outerSkullModel.currentNode(), self.faceControl.currentNode(),
@@ -253,6 +225,7 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     batchFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~", "Skin surfaces (*skin*.vtk)") # use vtk to avoid specyfing mri file type
 
     self.batchFiles = batchFiles
+    self.batchFolderText.setText('Selected files: %s' % len(batchFiles))
 
     # self.batchFolderText.setText(batchFolder)
 
@@ -403,6 +376,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         itemIDToClone = shNode.GetItemByDataNode(template_control_nodes[c])
         clonedItemID = slicer.modules.subjecthierarchy.logic().CloneSubjectHierarchyItem(shNode, itemIDToClone)
         clonedNode = shNode.GetItemDataNode(clonedItemID)
+        clonedNode.SetName(c)
         subj_control_nodes[c] = clonedNode
 
     print('--> Running Elastix Registration')
@@ -440,10 +414,15 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
             proj_coords = self.find_closest_point_coords(surf_arr, world[:3])
             subj_control_nodes[k].SetNthFiducialPositionFromArray(i, proj_coords)
     print('--> Control Points Registraion Finished')
+
     self.subj_control_nodes = subj_control_nodes
     slicer.mrmlScene.RemoveNode(outputVolume)
     slicer.mrmlScene.RemoveNode(outputTransform)
-
+    slicer.mrmlScene.RemoveNode(template_mri_node)
+    for c in controls:
+        slicer.mrmlScene.RemoveNode(template_control_nodes[c])
+        # subj_control_nodes[c].SetName(c)
+    print(subj_control_nodes)
 
   def getFileNames(self, skinFname):
     fnames = {}
@@ -477,10 +456,6 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
           self.subj_skull_node = slicer.util.loadModel(self.fnames['skull'], returnNode=True)[1]
           self.subj_trans_node = slicer.util.loadTransform(self.fnames['trans'], returnNode=True)[1]
 
-
-          # self.subj_skin_node = slicer.util.getNode('%s*skin*')
-          # self.subj_skull_node = slicer.util.getNode('%s*skull*')
-          # self.subj_trans_node = slicer.util.getNode('%s*bem2mri*')
       except Exception as e:
           print('Unable to load files') # error check ?
           print(e)
@@ -652,11 +627,12 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     T1_anon_data[mask_all] = rand_dat
 
     T1_anon.Modified()
-    
+
     if isBatch:
         slicer.util.saveNode(T1_anon, self.fnames['mri'].replace(self.subj, self.subj + '_anonymi'))
     slicer.mrmlScene.RemoveNode(mask)
     self.subj_mri_anon_node = T1_anon
+    slicer.util.setSliceViewerLayers(background=T1_anon)
     logging.info('Processing completed')
     return True
 
