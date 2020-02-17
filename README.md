@@ -40,7 +40,7 @@ Once you have downloaded it, open 3D Slicer, go to Settings (Edit > Application 
 
 ## Usage
 
-The whole procedure takes ~15 minutes of computation time and ~2 minutes of manual intervention.
+The whole procedure takes ~10 minutes of computation time and ~2 minutes of manual intervention.
 
 The complete pipeline involves:
 
@@ -63,7 +63,7 @@ To do so, open a terminal and run:
 anonymi_prepare.sh -p path/to/subj_folder
 ```
 
-This will create the surfaces, their _.vtk_ files and the _bem2mri.tfm_ transform.
+This will create the surfaces, their _.vtk_ files and the _surf2mri.tfm_ transform.
 
 
 
@@ -73,7 +73,7 @@ This will create the surfaces, their _.vtk_ files and the _bem2mri.tfm_ transfor
 
     - MRI to be anonymized.
     - _outer_skin.vtk_ & _outer_skull.vtk_
-    - _bem2mri.tfm_
+    - _surf2mri.tfm_
 
 (Add image)
 
@@ -100,6 +100,34 @@ At this point you should see the anonymized MRI. You can make a 3D render in ord
 If you need to anonymize multiple MRIs, you can run them serially, by creating all the required files and then running the masking procedure in batch.
 
 To do so, go to the Batch Processing section, click on Choose Batch Files, and select the _outer_skin_  files of all subjects that you want to run. Finally, click on Run Batch.
+
+
+
+### Manual control points
+
+In the example above the control points used for finding the portions to be masked were automatically determined. However, in some cases it is preferable to set them manually, for example if there are certain non-standard areas that would need to be masked, or if the template doesn't match the subject, as would be the case for young subjects. 
+
+In order to manually assign the control points:
+
+
+
+(Add instructions)
+
+
+
+### Group Specific Templates
+
+It is possible to create a custom template, in order to be used within Anony-MI. To do so, :
+
+(Add instructions)
+
+
+
+
+
+
+
+
 
 
 

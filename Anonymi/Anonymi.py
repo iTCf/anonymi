@@ -18,19 +18,19 @@ class Anonymi(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "Anonymi"
+    self.parent.title = "Anony-MI"
     self.parent.categories = ["Anonymization"]
     self.parent.dependencies = []
-    self.parent.contributors = ["John Doe (AnyWare Corp.)"] # replace with "Firstname Lastname (Organization)"
+    self.parent.contributors = ["Ezequiel Mikulan (University of Milan)", "Simone Russo (University of Milan)", "Andrea Pigorini (University of Milan)"]
     self.parent.helpText = """
-This is an example of scripted loadable module bundled in an extension.
-It performs a simple thresholding on the input volume and optionally captures a screenshot.
-"""
+    Anony-MI is an MRI anonymization tool that preserves the subject's anatomical geometry
+    """
+
     self.parent.helpText += self.getDefaultModuleDocumentationLink()
     self.parent.acknowledgementText = """
-This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc.
-and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR013218-12S1.
-""" # replace with organization, grant and thanks.
+    This research has received funding from the European Union's Horizon 2020 Framework Programme for Research and Innovation under the
+    Specific Grant Agreements No. 720270 and No. 785907 (Human Brain Project SGA1 and SGA2
+    """
 
 #
 # AnonymiWidget
@@ -70,6 +70,21 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.inputSelector.setMRMLScene( slicer.mrmlScene )
     self.inputSelector.setToolTip( "Pick the MRI to be Anonymized." )
     parametersFormLayout.addRow("Input Volume: ", self.inputSelector)
+
+    # surf2mri transform selector
+    #
+    self.surf2mri = slicer.qMRMLNodeComboBox()
+    self.surf2mri.nodeTypes = ["vtkMRMLLinearTransformNode"]
+    self.surf2mri.selectNodeUponCreation = True
+    self.surf2mri.addEnabled = False
+    self.surf2mri.removeEnabled = False
+    self.surf2mri.noneEnabled = False
+    self.surf2mri.showHidden = False
+    self.surf2mri.showChildNodeTypes = False
+    self.surf2mri.setMRMLScene( slicer.mrmlScene )
+    self.surf2mri.setToolTip( "Pick surf2mri transform." )
+    parametersFormLayout.addRow("Surface to MRI transform: ", self.surf2mri)
+    # TODO: autoselect nodes by name
 
     # outer_skin_surface selector
     #
@@ -160,7 +175,6 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
     # self.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
 
-
     # Refresh Apply button state
     self.onSelect() # ??
 
@@ -168,7 +182,9 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     #
     self.batchFiles = ''
     self.batchFolderText = qt.QLineEdit()
+    self.batchFolderText.setAlignment(qt.Qt.AlignCenter)
     self.batchFolderText.setDisabled(True)
+    self.batchFolderText.setText('No selected files')
 
     batchCollapsibleButton = ctk.ctkCollapsibleButton()
     batchCollapsibleButton.text = "Batch Processing"
@@ -195,39 +211,31 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     # Add vertical spacer
     self.layout.addStretch(1)
 
-
-  def cleanup(self):
-    pass
-
   def onSelect(self):
-    # self.applyButton.enabled = self.inputSelector.currentNode() and self.outputSelector.currentNode()
     self.applyButton.enabled = self.inputSelector.currentNode() and self.outerSkinModel.currentNode() and self.outerSkullModel.currentNode()
 
   def onApplyButton(self):
     logic = AnonymiLogic()
     logic.subj = self.inputSelector.currentNode().GetName()
     logic.run(self.inputSelector.currentNode(), self.outerSkinModel.currentNode(),
-              self.outerSkullModel.currentNode(), self.faceControl.currentNode(),
+              self.outerSkullModel.currentNode(), self.surf2mri.currentNode(), self.faceControl.currentNode(),
                self.earRControl.currentNode(), self.earLControl.currentNode(),
                isBatch=False)
 
 
   def onGetControl(self):
     logic = AnonymiLogic()
+    logic.align_surf_to_mri(self.surf2mri.currentNode(), self.outerSkinModel.currentNode(), self.outerSkullModel.currentNode())
     logic.getControl(self.outerSkinModel.currentNode(),
                      self.inputSelector.currentNode())
 
 
   def onSelectBatchFiles(self):
-    # batchFolder = qt.QFileDialog.getExistingDirectory(None, "Choose folder", "~",
-    #                                                   qt.QFileDialog.ShowDirsOnly)
-    # batchFolder = qt.QFileDialog.getExistingDirectory(None, "Choose folder", "~")
     batchFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~", "Skin surfaces (*skin*.vtk)") # use vtk to avoid specyfing mri file type
 
     self.batchFiles = batchFiles
     self.batchFolderText.setText('Selected files: %s' % len(batchFiles))
 
-    # self.batchFolderText.setText(batchFolder)
 
   def onRunBatch(self):
       print('---> Running Batch')
@@ -242,12 +250,13 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 
           logic.loadFiles()
 
-          logic.subj_skin_node.SetAndObserveTransformNodeID(logic.subj_trans_node.GetID())
-          logic.subj_skull_node.SetAndObserveTransformNodeID(logic.subj_trans_node.GetID())
-
-          trans_logic = slicer.vtkSlicerTransformLogic()
-          trans_logic.hardenTransform(logic.subj_skin_node)
-          trans_logic.hardenTransform(logic.subj_skull_node)
+          logic.align_surf_to_mri(surf2mri, outerSkinModel, outerSkullModel)
+          # logic.subj_skin_node.SetAndObserveTransformNodeID(logic.subj_trans_node.GetID())
+          # logic.subj_skull_node.SetAndObserveTransformNodeID(logic.subj_trans_node.GetID())
+          #
+          # trans_logic = slicer.vtkSlicerTransformLogic()
+          # trans_logic.hardenTransform(logic.subj_skin_node)
+          # trans_logic.hardenTransform(logic.subj_skull_node)
 
           logic.getControl(logic.subj_skin_node, logic.subj_mri_node)
           logic.run(logic.subj_mri_node, logic.subj_skin_node,
@@ -276,99 +285,43 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
   # TODO: Pretty logging
   # TODO: fix CLI
 
-  def hasImageData(self,volumeNode):
-    """This is an example logic method that
-    returns true if the passed in volume
-    node has valid image data
-    """
-    if not volumeNode:
-      logging.debug('hasImageData failed: no volume node')
-      return False
-    if volumeNode.GetImageData() is None:
-      logging.debug('hasImageData failed: no image data in volume node')
-      return False
-    return True
-
-  def isValidInputOutputData(self, inputVolumeNode, outputVolumeNode):
-    """Validates if the output is not the same as input
-    """
-    if not inputVolumeNode:
-      logging.debug('isValidInputOutputData failed: no input volume node defined')
-      return False
-    if not outputVolumeNode:
-      logging.debug('isValidInputOutputData failed: no output volume node defined')
-      return False
-    if inputVolumeNode.GetID()==outputVolumeNode.GetID():
-      logging.debug('isValidInputOutputData failed: input and output volume is the same. Create a new volume for output to avoid this error.')
-      return False
-    return True
-
-  def takeScreenshot(self,name,description,type=-1):
-    # show the message even if not taking a screen shot
-    slicer.util.delayDisplay('Take screenshot: '+description+'.\nResult is available in the Annotations module.', 3000)
-
-    lm = slicer.app.layoutManager()
-    # switch on the type to get the requested window
-    widget = 0
-    if type == slicer.qMRMLScreenShotDialog.FullLayout:
-      # full layout
-      widget = lm.viewport()
-    elif type == slicer.qMRMLScreenShotDialog.ThreeD:
-      # just the 3D window
-      widget = lm.threeDWidget(0).threeDView()
-    elif type == slicer.qMRMLScreenShotDialog.Red:
-      # red slice window
-      widget = lm.sliceWidget("Red")
-    elif type == slicer.qMRMLScreenShotDialog.Yellow:
-      # yellow slice window
-      widget = lm.sliceWidget("Yellow")
-    elif type == slicer.qMRMLScreenShotDialog.Green:
-      # green slice window
-      widget = lm.sliceWidget("Green")
-    else:
-      # default to using the full window
-      widget = slicer.util.mainWindow()
-      # reset the type so that the node is set correctly
-      type = slicer.qMRMLScreenShotDialog.FullLayout
-
-    # grab and convert to vtk image data
-    qimage = ctk.ctkWidgetsUtils.grabWidget(widget)
-    imageData = vtk.vtkImageData()
-    slicer.qMRMLUtils().qImageToVtkImageData(qimage,imageData)
-
-    annotationLogic = slicer.modules.annotations.logic()
-    annotationLogic.CreateSnapShot(name, description, type, 1, imageData)
-
   def find_closest_point_coords(self, cloud, point):
     dist_all = np.sqrt(np.sum((cloud - point) ** 2, axis=1))
     min_dist_ix = np.argmin(dist_all)
     min_dist_coords = cloud[min_dist_ix]
     return min_dist_coords
 
+  def align_surf_to_mri(self, surf2mri, outerSkinModel, outerSkullModel):
+    outerSkinModel.SetAndObserveTransformNodeID(surf2mri.GetID())
+    outerSkullModel.SetAndObserveTransformNodeID(surf2mri.GetID())
+
+    trans_logic = slicer.vtkSlicerTransformLogic()
+    trans_logic.hardenTransform(outerSkinModel)
+    trans_logic.hardenTransform(outerSkullModel)
+
+
   def getControl(self, outerSkinModel, inputVolume):
-    # import pycpd
     import Elastix
     print('--> Getting control points')
     controls = ['face', 'earR', 'earL']
 
     # check if templates are loaded
     try:
-        print('--> Using already loaded template')
-        # template_control_node = slicer.util.getNode('template_face_control*')
+
         template_mri_node = slicer.util.getNode('template_mri*')
         template_control_nodes = {k : slicer.util.getNode('template_%s_control*' % k) for k in controls}
+        print('--> Using already loaded template')
 
     except:
         print('--> Loading template')
-        template_mri_fname = '/home/eze/scripts/anonymi/Anonymi/Resources/template_mri.nii.gz' # TODO: template location automatic
-        # template_control_fname = '/home/eze/scripts/anonymi/Anonymi/Resources/template_face_control.fcsv'
-        template_control_fname = '/home/eze/scripts/anonymi/Anonymi/Resources/template_%s_control.fcsv'
+        base_dir = os.path.split(slicer.modules.anonymi.path)[0]
+        template_mri_fname = os.path.join(base_dir, 'Resources', 'template.mgz')
+        template_control_fname = os.path.join(base_dir, 'Resources', 'template_%s_control.fcsv')
         _ = [ slicer.util.loadMarkupsFiducialList(template_control_fname % k) for k in controls]
         template_mri_node = slicer.util.loadVolume(template_mri_fname, returnNode=True)[1]
         template_control = slicer.util.loadMarkupsFiducialList(template_control_fname) # check load control nodes
         template_control_nodes = {k : slicer.util.getNode('template_%s_control*' % k) for k in controls}
 
-    # TODO: clone markups
     shNode = slicer.vtkMRMLSubjectHierarchyNode.GetSubjectHierarchyNode(slicer.mrmlScene)
 
     subj_control_nodes = {}
@@ -421,8 +374,8 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     slicer.mrmlScene.RemoveNode(template_mri_node)
     for c in controls:
         slicer.mrmlScene.RemoveNode(template_control_nodes[c])
-        # subj_control_nodes[c].SetName(c)
-    print(subj_control_nodes)
+    # TODO: remove nodes only if not in batch mode
+    # TODO: add option for custom template
 
   def getFileNames(self, skinFname):
     fnames = {}
@@ -435,7 +388,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     sfiles = [os.path.join(fdir, f) for f in sfiles]
     fnames['skin'] = skinFname
     fnames['skull'] = basename + '_outer_skull_surface.vtk'
-    fnames['trans'] = basename + '_bem2mri.tfm'
+    fnames['trans'] = basename + '_surf2mri.tfm'
     fnames['mri'] = [f for f in sfiles if f not in fnames.values()]
 
     if len(fnames['mri']) != 1:
@@ -471,8 +424,6 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
       for n in nodes_to_del:
           slicer.mrmlScene.RemoveNode(n)
 
-      pass # TODO: clean subject files after completition
-
   def mask_dims(self, order, mask_control, min_R, max_R, min_A, max_A, min_S, max_S):
       # TODO: add all combinations
     if order == ['R', 'S', 'A']: # SLICER CHANGES THE AXIS ORDER!!!
@@ -483,7 +434,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         # mask_control[min_R:max_R, min_A:max_A, min_S:max_S] = True
     return mask_control
 
-  def run(self, inputVolume, outerSkinModel, outerSkullModel, faceControl,
+  def run(self, inputVolume, outerSkinModel, outerSkullModel, surf2mri, faceControl,
           earRControl, earLControl, isBatch):
     """
     Run the actual algorithm
@@ -495,6 +446,10 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     # Clone T1
     volumesLogic = slicer.modules.volumes.logic()
     T1_anon = volumesLogic.CloneVolume(slicer.mrmlScene, inputVolume, self.subj + '_anonymi')
+
+    # Align surface to mri
+
+
 
     # Create mask
     vclip = slicer.modules.volumeclipwithmodel.widgetRepresentation().self().logic

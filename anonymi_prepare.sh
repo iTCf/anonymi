@@ -11,6 +11,14 @@ while getopts ":p:f:" opt; do
   esac
 done
 
+start=`date +%s`
+
+# Make surfaces with Freesurfer's watershed algorithm
+out_name=`basename ${fname_mri}`
+out_name="${out_name%%.*}"
+mri_watershed -useSRAS -surf ${path}/${out_name} ${path}/${fname_mri} ${path}/bems/ws
+
+
 # Convert bem surfaces to .vtk
 echo "Converting surfaces"
 for file in ${path}/*outer*
@@ -40,6 +48,10 @@ text="#Insight Transform File V1.0\n#Transform 0\nTransform:
       AffineTransform_double_3_3\nParameters: 1 0 0 0 1 0 0 0 1
       ${cras_array[0]} ${cras_array[1]} $z\nFixedParameters: 0 0 0"
 
-fname_transform=${path}/bem2mri.tfm
-echo -e ${text} > bem2mri.tfm
+fname_transform=${path}/${out_name}_surf2mri.tfm
+echo -e ${text} > surf2mri.tfm
 echo "Done"
+
+end=`date +%s`
+runtime=$((end-start))
+echo Runtime: $((runtime)) seconds

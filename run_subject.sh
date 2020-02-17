@@ -15,7 +15,7 @@ mv "${DIR}/${f}" "${run_dir_inc}"
 
 # ---Run watershed
 /bin/bash -e ${scripts_path}/run_fs.sh ${run_dir_inc}/${f} ${run_dir_inc} > ${run_dir_inc}/fs_log.txt
-
+# TODO: fs is now on prepare script!
 # ---Run Anonymi preparation script
 /bin/bash -e ${scripts_path}/anonymi_prepare.sh -f ${f} -p ${run_dir_inc}
 
