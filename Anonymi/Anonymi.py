@@ -1,11 +1,11 @@
 import os
-import unittest
 import vtk, qt, ctk, slicer
 import numpy as np
 from slicer.ScriptedLoadableModule import *
 # from slicer.modules import volumeclipwithmodel
 import logging
-
+import subprocess as sp
+import shlex
 
 #
 # Anonymi
@@ -18,18 +18,18 @@ class Anonymi(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "Anony-MI"
+    self.parent.title = "AnonyMI"
     self.parent.categories = ["Anonymization"]
     self.parent.dependencies = []
     self.parent.contributors = ["Ezequiel Mikulan (University of Milan)", "Simone Russo (University of Milan)", "Andrea Pigorini (University of Milan)"]
     self.parent.helpText = """
-    Anony-MI is an MRI anonymization tool that preserves the subject's anatomical geometry
+    AnonyMI is an MRI anonymization tool that preserves the subject's anatomical geometry
     """
 
     self.parent.helpText += self.getDefaultModuleDocumentationLink()
     self.parent.acknowledgementText = """
     This research has received funding from the European Union's Horizon 2020 Framework Programme for Research and Innovation under the
-    Specific Grant Agreements No. 720270 and No. 785907 (Human Brain Project SGA1 and SGA2
+    Specific Grant Agreements No. 720270 and No. 785907 (Human Brain Project SGA1 and SGA2)
     """
 
 #
@@ -46,17 +46,30 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 
     # Instantiate and connect widgets ...
 
+    # Prepare Area
     #
+    prepareCollapsibleButton = ctk.ctkCollapsibleButton()
+    prepareCollapsibleButton.text = "Prepare files"
+    self.layout.addWidget(prepareCollapsibleButton)
+
+    # Layout - Batch
+    prepareFormLayout = qt.QFormLayout(prepareCollapsibleButton)
+
+    self.prepareFilesSelector = qt.QPushButton("Choose Files to Prepare")
+    self.prepareFilesSelector.toolTip = "Select the files for preparation"
+    self.prepareFilesSelector.enabled = True
+
+    prepareFormLayout.addRow(self.prepareFilesSelector)
+
+    self.prepareFilesSelector.connect('clicked(bool)', self.onPrepareFiles)
+
     # Parameters Area
     #
     parametersCollapsibleButton = ctk.ctkCollapsibleButton()
     parametersCollapsibleButton.text = "Single Subject"
     self.layout.addWidget(parametersCollapsibleButton)
-
-    # Layout within the dummy collapsible button
     parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
 
-    #
     # input volume selector
     #
     self.inputSelector = slicer.qMRMLNodeComboBox()
@@ -67,8 +80,8 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.inputSelector.noneEnabled = False
     self.inputSelector.showHidden = False
     self.inputSelector.showChildNodeTypes = False
-    self.inputSelector.setMRMLScene( slicer.mrmlScene )
-    self.inputSelector.setToolTip( "Pick the MRI to be Anonymized." )
+    self.inputSelector.setMRMLScene(slicer.mrmlScene)
+    self.inputSelector.setToolTip("Pick the MRI to be Anonymized.")
     parametersFormLayout.addRow("Input Volume: ", self.inputSelector)
 
     # surf2mri transform selector
@@ -81,8 +94,8 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.surf2mri.noneEnabled = False
     self.surf2mri.showHidden = False
     self.surf2mri.showChildNodeTypes = False
-    self.surf2mri.setMRMLScene( slicer.mrmlScene )
-    self.surf2mri.setToolTip( "Pick surf2mri transform." )
+    self.surf2mri.setMRMLScene(slicer.mrmlScene)
+    self.surf2mri.setToolTip("Pick surf2mri transform.")
     parametersFormLayout.addRow("Surface to MRI transform: ", self.surf2mri)
     # TODO: autoselect nodes by name
 
@@ -96,10 +109,9 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.outerSkinModel.noneEnabled = False
     self.outerSkinModel.showHidden = False
     self.outerSkinModel.showChildNodeTypes = False
-    self.outerSkinModel.setMRMLScene( slicer.mrmlScene )
-    self.outerSkinModel.setToolTip( "Pick outer skin model." )
+    self.outerSkinModel.setMRMLScene(slicer.mrmlScene)
+    self.outerSkinModel.setToolTip("Pick outer skin model.")
     parametersFormLayout.addRow("Outer skin model: ", self.outerSkinModel)
-
 
     # outer_skull_surface selector
     #
@@ -111,8 +123,8 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.outerSkullModel.noneEnabled = False
     self.outerSkullModel.showHidden = False
     self.outerSkullModel.showChildNodeTypes = False
-    self.outerSkullModel.setMRMLScene( slicer.mrmlScene )
-    self.outerSkullModel.setToolTip( "Pick outer skull model." )
+    self.outerSkullModel.setMRMLScene(slicer.mrmlScene)
+    self.outerSkullModel.setToolTip("Pick outer skull model.")
     parametersFormLayout.addRow("Outer skull model: ", self.outerSkullModel)
 
     # Control points
@@ -125,8 +137,8 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.faceControl.noneEnabled = False
     self.faceControl.showHidden = False
     self.faceControl.showChildNodeTypes = False
-    self.faceControl.setMRMLScene( slicer.mrmlScene )
-    self.faceControl.setToolTip( "Pick list of control points for the FACE." )
+    self.faceControl.setMRMLScene(slicer.mrmlScene)
+    self.faceControl.setToolTip("Pick list of control points for the FACE.")
     parametersFormLayout.addRow("Face control points: ", self.faceControl)
 
     self.earRControl = slicer.qMRMLNodeComboBox()
@@ -138,7 +150,7 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.earRControl.showHidden = False
     self.earRControl.showChildNodeTypes = False
     self.earRControl.setMRMLScene( slicer.mrmlScene )
-    self.earRControl.setToolTip( "Pick list of control points for the RIGHT EAR." )
+    self.earRControl.setToolTip("Pick list of control points for the RIGHT EAR.")
     parametersFormLayout.addRow("Right ear control points: ", self.earRControl)
 
     self.earLControl = slicer.qMRMLNodeComboBox()
@@ -149,8 +161,8 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.earLControl.noneEnabled = False
     self.earLControl.showHidden = False
     self.earLControl.showChildNodeTypes = False
-    self.earLControl.setMRMLScene( slicer.mrmlScene )
-    self.earLControl.setToolTip( "Pick list of control points for the LEFT EAR." )
+    self.earLControl.setMRMLScene(slicer.mrmlScene)
+    self.earLControl.setToolTip("Pick list of control points for the LEFT EAR.")
     parametersFormLayout.addRow("Left ear control points: ", self.earLControl)
 
     #
@@ -173,29 +185,28 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.getControl.connect('clicked(bool)', self.onGetControl)
     self.applyButton.connect('clicked(bool)', self.onApplyButton)
     self.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
-    # self.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
 
-    # Refresh Apply button state
-    self.onSelect() # ??
+    # Refresh Apply button state (enabled when all inputs are ok)
+    self.onSelect()
 
     # Batch Area
     #
-    self.batchFiles = ''
-    self.batchFolderText = qt.QLineEdit()
-    self.batchFolderText.setAlignment(qt.Qt.AlignCenter)
-    self.batchFolderText.setDisabled(True)
-    self.batchFolderText.setText('No selected files')
-
     batchCollapsibleButton = ctk.ctkCollapsibleButton()
     batchCollapsibleButton.text = "Batch Processing"
     self.layout.addWidget(batchCollapsibleButton)
 
-    # Layout within the dummy collapsible button
+    # Layout - Batch
     batchFormLayout = qt.QFormLayout(batchCollapsibleButton)
 
     self.batchFilesSelector = qt.QPushButton("Choose Batch Files")
     self.batchFilesSelector.toolTip = "Select the files for batch running"
     self.batchFilesSelector.enabled = True
+
+    self.batchFiles = ''
+    self.batchFolderText = qt.QLineEdit()
+    self.batchFolderText.setAlignment(qt.Qt.AlignCenter)
+    self.batchFolderText.setDisabled(True)
+    self.batchFolderText.setText('No selected files')
 
     self.batchRun = qt.QPushButton("Run Batch")
     self.batchRun.toolTip = "Run Batch Process"
@@ -211,6 +222,70 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     # Add vertical spacer
     self.layout.addStretch(1)
 
+  def getFsEnv(self):
+      """Create an environment for elastix where executables are added to the path"""
+      fsBinDir = '/Users/lpen/scripts/anonymi/Anonymi/Resources/bin:/usr/lib:'
+      fsEnv = os.environ.copy()
+      fsEnv["PATH"] = fsBinDir + os.pathsep + fsEnv["PATH"] if fsEnv.get("PATH") else fsBinDir
+      fsEnv['DYLD_LIBRARY_PATH'] = '/Users/lpen/scripts/anonymi/Anonymi/Resources/lib/gcc/lib'
+      fsEnv['FREESURFER_HOME'] = '/Users/lpen/scripts/anonymi/Anonymi/Resources'
+      return fsEnv
+
+  def onPrepareFiles(self):
+      # todo: add parameters for choosing what to run
+      prepareFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~", "")  # TODO: specify only mri types
+      self.prepareFiles = prepareFiles
+      fsEnv = self.getFsEnv()
+
+      for f in prepareFiles:
+          print('Preparing file: %s' % f)
+          file_spl = os.path.split(f)
+          file_dir = file_spl[0]
+          file_name = file_spl[1]
+          base_name = file_name.split('.')[0]
+          logfile = open('%s/log.txt' % file_dir, 'w')
+
+          # run watershed
+          command = 'mri_watershed -useSRAS -surf %s/%s %s %s/bems/ws' % (file_dir, base_name, f, file_dir)
+          p = sp.Popen(shlex.split(command), env=fsEnv, stdout=logfile, stderr=logfile)
+          p.wait()
+          print('Watershed Done: %s' % f)
+
+          # convert surfaces to vtk
+          surfs = ('outer_skull', 'outer_skin')
+          for s in surfs:
+              file_s = '%s/%s_%s_surface' % (file_dir, base_name, s)
+              command = 'mris_convert %s %s' % (file_s, file_s+'.vtk')
+              p = sp.Popen(shlex.split(command), env=fsEnv, stdout=logfile, stderr=logfile)
+              p.wait()
+
+          # create alignment file
+          command = 'mri_info %s --cras' % f
+          cras = sp.check_output(shlex.split(command), env=fsEnv, stderr=logfile)
+          cras = cras.strip('\n').split(' ')
+          cras = [round(float(n), 2) for n in cras]
+          cras[2] *= -1  # invert for ITK
+
+          text = ('#Insight Transform File V1.0\n'
+                  '#Transform 0\n'
+                  'Transform: AffineTransform_double_3_3\n'
+                  'Parameters: 1 0 0 0 1 0 0 0 1 %s %s %s\n'
+                  'FixedParameters: 0 0 0\n' % (cras[0], cras[1], cras[2]))
+
+          file_trans = '%s/%s_surf2mri.tfm' % (file_dir, base_name)
+          with open(file_trans, 'w') as f_tr:
+              f_tr.write(text)
+          print('Alignment Transform Done: %s' % f)
+          logfile.close()
+
+          # clean
+          s_to_clean = ('brain', 'inner_skull', 'outer_skull', 'outer_skin')
+          for s in s_to_clean:
+              s_file = '%s/%s_%s_surface' % (file_dir, base_name, s)
+              if os.path.isfile(s_file):
+                os.remove(s_file)
+          print('Prepare Files Done: %s' % f)
+
   def onSelect(self):
     self.applyButton.enabled = self.inputSelector.currentNode() and self.outerSkinModel.currentNode() and self.outerSkullModel.currentNode()
 
@@ -219,9 +294,8 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     logic.subj = self.inputSelector.currentNode().GetName()
     logic.run(self.inputSelector.currentNode(), self.outerSkinModel.currentNode(),
               self.outerSkullModel.currentNode(), self.surf2mri.currentNode(), self.faceControl.currentNode(),
-               self.earRControl.currentNode(), self.earLControl.currentNode(),
-               isBatch=False)
-
+              self.earRControl.currentNode(), self.earLControl.currentNode(),
+              isBatch=False)
 
   def onGetControl(self):
     logic = AnonymiLogic()
@@ -229,13 +303,11 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     logic.getControl(self.outerSkinModel.currentNode(),
                      self.inputSelector.currentNode())
 
-
   def onSelectBatchFiles(self):
     batchFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~", "Skin surfaces (*skin*.vtk)") # use vtk to avoid specyfing mri file type
 
     self.batchFiles = batchFiles
     self.batchFolderText.setText('Selected files: %s' % len(batchFiles))
-
 
   def onRunBatch(self):
       print('---> Running Batch')
@@ -250,19 +322,13 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 
           logic.loadFiles()
 
-          logic.align_surf_to_mri(surf2mri, outerSkinModel, outerSkullModel)
-          # logic.subj_skin_node.SetAndObserveTransformNodeID(logic.subj_trans_node.GetID())
-          # logic.subj_skull_node.SetAndObserveTransformNodeID(logic.subj_trans_node.GetID())
-          #
-          # trans_logic = slicer.vtkSlicerTransformLogic()
-          # trans_logic.hardenTransform(logic.subj_skin_node)
-          # trans_logic.hardenTransform(logic.subj_skull_node)
+          logic.align_surf_to_mri(logic.subj_trans_node, logic.subj_skin_node, logic.subj_skull_node)
 
           logic.getControl(logic.subj_skin_node, logic.subj_mri_node)
           logic.run(logic.subj_mri_node, logic.subj_skin_node,
                     logic.subj_skull_node, logic.subj_control_nodes['face'],
-                     logic.subj_control_nodes['earR'], logic.subj_control_nodes['earL'],
-                     isBatch=True)
+                    logic.subj_control_nodes['earR'], logic.subj_control_nodes['earL'],
+                    isBatch=True)
           logic.cleanSubjFiles()
 
 #
@@ -343,9 +409,9 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     print(type(inputVolume))
     parameterFilenames = elastix_logic.getRegistrationPresets()[0][5] # 5 = RegistrationPresets_ParameterFilenames
     elastix_logic.registerVolumes(inputVolume, template_mri_node,
-                                  parameterFilenames = parameterFilenames,
-                                  outputVolumeNode = outputVolume,
-                                  outputTransformNode = outputTransform)
+                                  parameterFilenames=parameterFilenames,
+                                  outputVolumeNode=outputVolume,
+                                  outputTransformNode=outputTransform)
     outputVolume.Modified()
     slicer.mrmlScene.AddNode(outputTransform)
 
@@ -379,7 +445,6 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
   def getFileNames(self, skinFname):
     fnames = {}
-    # TODO: how to get all the filenames (volume ext?)
     basename = skinFname.replace('_outer_skin_surface.vtk', '')
     fdir = os.path.split(skinFname)[0]
     all_files = os.listdir(fdir)
@@ -394,7 +459,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     if len(fnames['mri']) != 1:
      print(fnames)
      print('Inconsistent number of files')
-     return 0 # check correct return ?
+     return 0  # check correct return ?
     else:
         fnames['mri'] = fnames['mri'][0]
     self.subj = scode
@@ -434,8 +499,9 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         # mask_control[min_R:max_R, min_A:max_A, min_S:max_S] = True
     return mask_control
 
-  def run(self, inputVolume, outerSkinModel, outerSkullModel, surf2mri, faceControl,
+  def run(self, inputVolume, outerSkinModel, outerSkullModel, faceControl,
           earRControl, earLControl, isBatch):
+
     """
     Run the actual algorithm
     """
@@ -446,10 +512,6 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     # Clone T1
     volumesLogic = slicer.modules.volumes.logic()
     T1_anon = volumesLogic.CloneVolume(slicer.mrmlScene, inputVolume, self.subj + '_anonymi')
-
-    # Align surface to mri
-
-
 
     # Create mask
     vclip = slicer.modules.volumeclipwithmodel.widgetRepresentation().self().logic
