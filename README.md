@@ -10,7 +10,7 @@ ADD IMAGE
 
 For a detailed explanation of the procedure please refer to [add publication].
 
-<br/><br/>
+<br/>
 
 ## Installation
 
@@ -36,7 +36,7 @@ git clone (add final link)
 
 or use the download button from GitHub. 
 
-
+<br/>
 
 ### Adding the plug-in
 
@@ -44,7 +44,7 @@ Once you have downloaded it, open 3D Slicer, go to Settings (Edit > Application 
 
 (Add image)
 
-
+<br/>
 
 ## Usage
 
@@ -56,7 +56,7 @@ To open AnonyMI's interface go to the Modules menu in Slicer and under Anonymiza
 
 (Add image)
 
-
+<br/>
 
 ### Preparing the files
 
@@ -68,7 +68,7 @@ Press the _Prepare Files_ button, navigate to the folder where you have your MRI
 
 (Add image)
 
-
+<br/>
 
 ### Automatic Mode
 
@@ -80,7 +80,7 @@ To automatically anonymize one or more MRIs follow these steps
 
 2. Press the _Run_ button on the Automatic Processing section.
 
-
+<br/>
 
 ### Manual Mode
 
@@ -102,7 +102,7 @@ To run the anonymization in manual mode follow these steps.
 
 After it finishes you will be able to see the anonymized MRI and also to create a 3D render of it to observe the results (see below).
 
-
+<br/>
 
 #### Manual control points
 
@@ -114,7 +114,7 @@ In order to manually assign the control points:
 
 (Add instructions)
 
-
+<br/>
 
 #### Group Specific Templates
 
@@ -137,7 +137,7 @@ To run the process, either manually or automatically:
 2. Press the _Select Custom Template_ button in the Template section and select the MRI you want to use.
 3. Run the anonymization process either manually or automatically as explained above.
 
-
+<br/>
 
 #### 3D Rendering of Results
 
