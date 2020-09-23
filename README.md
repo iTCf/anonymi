@@ -10,7 +10,7 @@ ADD IMAGE
 
 For a detailed explanation of the procedure please refer to [add publication].
 
-
+<br/><br/>
 
 ## Installation
 
@@ -22,7 +22,7 @@ AnonyMI uses some [Freesurfer](https://surfer.nmr.mgh.harvard.edu/) functions th
 
 (Add image)
 
-
+<br/>
 
 ### Downloading
 
@@ -96,11 +96,11 @@ To run the anonymization in manual mode follow these steps.
 
 3. At this point AnonyMI can identify the face and ears areas by itself or you can indicate them yourself (see below for the latter procedure). To find the face and ears areas press the _Get control points_ button.
 
-4. Press _Apply_
+4. Press _Apply_.
 
 
 
-After it finishes you will be able to see the anonymized MRI and also to create a 3D render of it to observe the results.
+After it finishes you will be able to see the anonymized MRI and also to create a 3D render of it to observe the results (see below).
 
 
 
