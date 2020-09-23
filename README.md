@@ -1,6 +1,6 @@
 # Anony-MI
 
-Anony-Mi is a tool for anonymizing MRIs which preserves the subject's anatomical geometry. It works as a 3D Slicer plug-in and can also be used as a standalone command line script.
+Anony-Mi is a tool for anonymizing MRIs which preserves the subject's anatomical geometry. It works as a 3D Slicer Extension and can also be used as a standalone command line script.
 
 
 
@@ -8,15 +8,21 @@ ADD IMAGE
 
 
 
+For a detailed explanation of the procedure please refer to [add publication].
+
+
+
 ## Installation
 
 ### Requirements
 
-It requires 3D Slicer (with two extra plug-ins) and Freesurfer. 
+It requires 3D Slicer (with two extra plug-ins). In order to install [3D Slicer](https://www.slicer.org/) please refer to their to their website. After it is installed, open 3D Slicer and go to the Extensions Manager (View > Extensions Manager). In the "Install Extensions" tab search for the VolumeClip and the SlicerElastix extensions and install them.
 
-In order to install [3D Slicer](https://www.slicer.org/) please refer to their to their website. After it is installed, open 3D Slicer and go to the Extensions Manager (View > Extensions Manager). In the "Install Extensions" tab search for the VolumeClip and the SlicerElastix extensions and install them.
+AnonyMI uses some [Freesurfer](https://surfer.nmr.mgh.harvard.edu/) functions that are already included in it, but require a Freesurfer license to be used. Obtaining a Freesurfer license es free and fast. Fill this [form](https://surfer.nmr.mgh.harvard.edu/registration.html)  and you will receive it via e-mail. Copy the indicated text and put it inside the Resources folder of AnonyMI once you have downloaded it (see below).
 
-To install [Freesurfer](https://surfer.nmr.mgh.harvard.edu/) please refer to their website.
+(Add image)
+
+
 
 ### Downloading
 
@@ -28,7 +34,9 @@ In order to download Anony-MI clone or download this repository:
 git clone (add final link)
 ```
 
-or use the download button from GitHub.
+or use the download button from GitHub. 
+
+
 
 ### Adding the plug-in
 
@@ -40,70 +48,63 @@ Once you have downloaded it, open 3D Slicer, go to Settings (Edit > Application 
 
 ## Usage
 
-The whole procedure takes ~10 minutes of computation time and ~2 minutes of manual intervention.
+AnonyMI can be used either automatically or manually. Automatic operation will perform the whole process by simply pressing two buttons. It is the fastest way of performing the anonymization procedure. Manual operation allows for precise fine-tuning of the areas to be anonymized, which can be useful for particularly difficult cases.
 
-The complete pipeline involves:
+In both cases the procedure is divided in two steps. 1) Preparing the files (~10 minutes) and 2) Running the algorithm (~1 minute).
 
-1. Creating the anatomical surfaces (or copying them if they have already been computed) and preparing the necessary files.
-3. Running the masking procedure.
-
-Steps 1 can be performed using a single script provided in this repository (ADD LINK). Step 2 is performed using 3D Slicer's interface.
-
-The anonymization procedure can also be run in batch, in order to process multiple images in an automatic way.
-
-
-
-### 1. Creating the anatomical surfaces and preparing the files
-
-The first step involves running a Freesurfer command to get the surfaces corresponding to the skin and skull of the subject and obtaining the transformation to align them propertly with the MRI.
-
-To do so, open a terminal and run:
-
-```
-anonymi_prepare.sh -p path/to/subj_folder
-```
-
-This will create the surfaces, their _.vtk_ files and the _surf2mri.tfm_ transform.
-
-
-
-### 2. Running the masking procedure
-
-1. Open 3D Slicer and load the following files:
-
-    - MRI to be anonymized.
-    - _outer_skin.vtk_ & _outer_skull.vtk_
-    - _surf2mri.tfm_
-
-(Add image)
-
-2. Then, go the the Modules selector and choose Anony-MI (Anonymization > Anony-MI).
-
-(Add image)
-
-3. Select your MRI as the Input Volume
-
-4. Click on Get control points
-
-5. Select the corresponding surfaces (models) and control points.
-
-6. Click Apply
-
-At this point you should see the anonymized MRI. You can make a 3D render in order to verify that it has been correctly anonymized. To do so, go to the Volume Rendering module, select the anonymized mri and make it visible.
+To open AnonyMI's interface go to the Modules menu in Slicer and under Anonymization you will find AnonyMI.
 
 (Add image)
 
 
 
-### Batch processing
+#### Preparing the files
 
-If you need to anonymize multiple MRIs, you can run them serially, by creating all the required files and then running the masking procedure in batch.
+This involves several steps that are executed in sequence by choosing one or more MRI files.
 
-To do so, go to the Batch Processing section, click on Choose Batch Files, and select the _outer_skin_  files of all subjects that you want to run. Finally, click on Run Batch.
+Press the _Prepare Files_ button, navigate to the folder where you have your MRIs and choose one or more MRI files. If you choose multiple files their preparation will be performed in sequence. It is advisable to copy all the MRIs you want to anonymize on one folder, this way, selecting the files will be faster and you will always have a back-up.
 
 
 
-### Manual control points
+(Add image)
+
+
+
+#### Automatic Mode
+
+To automatically anonymize one or more MRIs follow these steps
+
+1. Press the button _Select files to Run_ in the Automatic Processing section, navigate to the folder where the MRIs are located and choose the files corresponding to the subject or subjects you want to process. The possible files to be selected will be highlighted.
+
+(Add image)
+
+2. Press the _Run_ button on the Automatic Processing section.
+
+
+
+#### Manual Mode
+
+To run the anonymization in manual mode follow these steps.
+
+1. Load the files that have been prepared for the subject you want to anonymize (see Preparing Files above) using Slicer's interface:
+
+   (Add image)
+
+2. Select the appropriate files on the _Input Volume_, _Surface to MRI transform_, _Outer skin model_, _Outer skull model_.
+
+   (Add image)
+
+3. At this point AnonyMI can identify the face and ears areas by itself or you can indicate them yourself (see below for the latter procedure). To find the face and ears areas press the _Get control points_ button.
+
+4. Press _Apply_
+
+
+
+After it finishes you will be able to see the anonymized MRI and also to create a 3D render of it to observe the results.
+
+
+
+#### Manual control points
 
 In the example above the control points used for finding the portions to be masked were automatically determined. However, in some cases it is preferable to set them manually, for example if there are certain non-standard areas that would need to be masked, or if the template doesn't match the subject, as would be the case for young subjects. 
 
@@ -115,17 +116,38 @@ In order to manually assign the control points:
 
 
 
-### Group Specific Templates
+#### Group Specific Templates
 
-It is possible to create a custom template, in order to be used within Anony-MI. To do so, :
+To create a custom template:
 
-(Add instructions)
+1. Run the _Prepare Files_ process on the MRI that you want to use as a template as explained above.
+
+2. Manually mark the control points as explained above.
+
+3. Save the control points using Slicer's interface naming the according to the following convention
+
+   (Add image)
 
 
 
+To run the process, either manually or automatically:
+
+1. Mark the _Use Custom Template_ box in the Template section
+
+2. Press the _Select Custom Template_ button in the Template section and select the MRI you want to use.
+3. Run the anonymization process either manually or automatically as explained above.
 
 
 
+#### 3D Rendering of Results
+
+To create a 3D render of the anoymized MRI:
+
+1. Open the Volume Rendering module on the modules section.
+2. Select the anonymized Volume (or the original MRI if you want to compare them)
+3. Click the eye symbol.
+
+The render will appear on the 3D View panel.
 
 
 
