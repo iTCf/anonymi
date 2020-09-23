@@ -58,7 +58,7 @@ To open AnonyMI's interface go to the Modules menu in Slicer and under Anonymiza
 
 
 
-#### Preparing the files
+### Preparing the files
 
 This involves several steps that are executed in sequence by choosing one or more MRI files.
 
@@ -70,7 +70,7 @@ Press the _Prepare Files_ button, navigate to the folder where you have your MRI
 
 
 
-#### Automatic Mode
+### Automatic Mode
 
 To automatically anonymize one or more MRIs follow these steps
 
@@ -82,7 +82,7 @@ To automatically anonymize one or more MRIs follow these steps
 
 
 
-#### Manual Mode
+### Manual Mode
 
 To run the anonymization in manual mode follow these steps.
 
