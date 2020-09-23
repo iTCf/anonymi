@@ -52,10 +52,10 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     prepareCollapsibleButton.text = "Prepare files"
     self.layout.addWidget(prepareCollapsibleButton)
 
-    # Layout - Batch
+    # Layout - Prepare
     prepareFormLayout = qt.QFormLayout(prepareCollapsibleButton)
 
-    self.prepareFilesSelector = qt.QPushButton("Choose Files to Prepare")
+    self.prepareFilesSelector = qt.QPushButton("Select Files to Prepare")
     self.prepareFilesSelector.toolTip = "Select the files for preparation"
     self.prepareFilesSelector.enabled = True
 
@@ -63,7 +63,7 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 
     self.prepareFilesSelector.connect('clicked(bool)', self.onPrepareFiles)
 
-    # Parameters Area
+    # Single Subject
     #
     parametersCollapsibleButton = ctk.ctkCollapsibleButton()
     parametersCollapsibleButton.text = "Single Subject"
@@ -192,13 +192,13 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     # Batch Area
     #
     batchCollapsibleButton = ctk.ctkCollapsibleButton()
-    batchCollapsibleButton.text = "Batch Processing"
+    batchCollapsibleButton.text = "Automatic Processing"
     self.layout.addWidget(batchCollapsibleButton)
 
     # Layout - Batch
     batchFormLayout = qt.QFormLayout(batchCollapsibleButton)
 
-    self.batchFilesSelector = qt.QPushButton("Choose Batch Files")
+    self.batchFilesSelector = qt.QPushButton("Select Files to Run")
     self.batchFilesSelector.toolTip = "Select the files for batch running"
     self.batchFilesSelector.enabled = True
 
@@ -208,9 +208,9 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     self.batchFolderText.setDisabled(True)
     self.batchFolderText.setText('No selected files')
 
-    self.batchRun = qt.QPushButton("Run Batch")
+    self.batchRun = qt.QPushButton("Run")
     self.batchRun.toolTip = "Run Batch Process"
-    self.batchRun.enabled = True # TODO: enable run batch when files are selected
+    self.batchRun.enabled = True  # TODO: enable run batch when files are selected
 
     batchFormLayout.addRow(self.batchFilesSelector)
     batchFormLayout.addRow(self.batchFolderText)
@@ -218,6 +218,33 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 
     self.batchFilesSelector.connect('clicked(bool)', self.onSelectBatchFiles)
     self.batchRun.connect('clicked(bool)', self.onRunBatch)
+
+
+    # Template Area
+    #
+    templCollapsibleButton = ctk.ctkCollapsibleButton()
+    templCollapsibleButton.text = "Template"
+    self.layout.addWidget(templCollapsibleButton)
+
+    # Layout - Template
+    templFormLayout = qt.QFormLayout(templCollapsibleButton)
+
+    self.custTempCheckb = qt.QCheckBox()
+    self.templFilesSelector = qt.QPushButton("Select Custom Template")
+    self.templFilesSelector.toolTip = "Select Custom Template"
+    self.templFilesSelector.enabled = True
+
+    self.templateFiles = ''
+    self.templFolderText = qt.QLineEdit()
+    self.templFolderText.setAlignment(qt.Qt.AlignCenter)
+    self.templFolderText.setDisabled(True)
+    self.templFolderText.setText('No Custom Template Selected')
+
+    templFormLayout.addRow("Use Custom Template ", self.custTempCheckb)
+    templFormLayout.addRow(self.templFilesSelector)
+    templFormLayout.addRow(self.templFolderText)
+
+    self.templFilesSelector.connect('clicked(bool)', self.onSelectTemplate)
 
     # Add vertical spacer
     self.layout.addStretch(1)
@@ -287,21 +314,32 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
           print('Prepare Files Done: %s' % f)
 
   def onSelect(self):
-    self.applyButton.enabled = self.inputSelector.currentNode() and self.outerSkinModel.currentNode() and self.outerSkullModel.currentNode()
+    self.applyButton.enabled = self.inputSelector.currentNode() and self.outerSkinModel.currentNode() and \
+                               self.outerSkullModel.currentNode() and self.faceControl.currentNode() and \
+                               self.earRControl.currentNode(), self.earLControl.currentNode()
+
 
   def onApplyButton(self):
     logic = AnonymiLogic()
     logic.subj = self.inputSelector.currentNode().GetName()
     logic.run(self.inputSelector.currentNode(), self.outerSkinModel.currentNode(),
-              self.outerSkullModel.currentNode(), self.surf2mri.currentNode(), self.faceControl.currentNode(),
+              self.outerSkullModel.currentNode(), self.faceControl.currentNode(),
               self.earRControl.currentNode(), self.earLControl.currentNode(),
               isBatch=False)
 
   def onGetControl(self):
     logic = AnonymiLogic()
     logic.align_surf_to_mri(self.surf2mri.currentNode(), self.outerSkinModel.currentNode(), self.outerSkullModel.currentNode())
+
+    if self.custTempCheckb.isChecked():
+        template = self.templFiles[0]
+        print('-----> Using custom template: %s' % template)
+    else:
+        template = 'IXI'
+        print('-----> Using IXI template')
+
     logic.getControl(self.outerSkinModel.currentNode(),
-                     self.inputSelector.currentNode())
+                     self.inputSelector.currentNode(), template)
 
   def onSelectBatchFiles(self):
     batchFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~", "Skin surfaces (*skin*.vtk)") # use vtk to avoid specyfing mri file type
@@ -324,27 +362,34 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 
           logic.align_surf_to_mri(logic.subj_trans_node, logic.subj_skin_node, logic.subj_skull_node)
 
-          logic.getControl(logic.subj_skin_node, logic.subj_mri_node)
+          if self.custTempCheckb.isChecked():
+              template = self.templFiles[0]
+              print('-----> Using custom template: %s' % template)
+          else:
+              template = 'IXI'
+              print('-----> Using IXI template')
+
+          logic.getControl(logic.subj_skin_node, logic.subj_mri_node, template)
           logic.run(logic.subj_mri_node, logic.subj_skin_node,
                     logic.subj_skull_node, logic.subj_control_nodes['face'],
                     logic.subj_control_nodes['earR'], logic.subj_control_nodes['earL'],
                     isBatch=True)
           logic.cleanSubjFiles()
 
+  def onSelectTemplate(self):
+      templFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~",
+                                                   "Template (*.dcm *.nrrd *.img *.nii *.nii.gz *.mgz)")
+
+      if templFiles:
+          self.templFiles = templFiles
+          self.templFolderText.setText('Selected file: %s' % templFiles)
+
+
 #
 # AnonymiLogic
 #
 
 class AnonymiLogic(ScriptedLoadableModuleLogic):
-  """This class should implement all the actual
-  computation done by your module.  The interface
-  should be such that other python code can import
-  this class and make use of the functionality without
-  requiring an instance of the Widget.
-  Uses ScriptedLoadableModuleLogic base class, available at:
-  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-  """
-
   # TODO: Snapshots
   # TODO: Better interface for batch files to run
   # TODO: Manual (pdf) & Logo
@@ -366,27 +411,34 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     trans_logic.hardenTransform(outerSkullModel)
 
 
-  def getControl(self, outerSkinModel, inputVolume):
+  def getControl(self, outerSkinModel, inputVolume, template='IXI'):
     import Elastix
     print('--> Getting control points')
     controls = ['face', 'earR', 'earL']
 
     # check if templates are loaded
     try:
-
-        template_mri_node = slicer.util.getNode('template_mri*')
-        template_control_nodes = {k : slicer.util.getNode('template_%s_control*' % k) for k in controls}
+        template_mri_node = slicer.util.getNode('%s_mri*' % template)
+        template_control_nodes = {k: slicer.util.getNode('%s_%s_control*' % (template, k)) for k in controls}
         print('--> Using already loaded template')
 
     except:
         print('--> Loading template')
         base_dir = os.path.split(slicer.modules.anonymi.path)[0]
-        template_mri_fname = os.path.join(base_dir, 'Resources', 'template.mgz')
-        template_control_fname = os.path.join(base_dir, 'Resources', 'template_%s_control.fcsv')
-        _ = [ slicer.util.loadMarkupsFiducialList(template_control_fname % k) for k in controls]
+        if template == 'IXI':
+            template_path = os.path.join(base_dir, 'Resources')
+            template_fname = 'IXI.nii'
+            template_basename = template
+        else:
+            template_path, template_fname = os.path.split(template)
+            template_basename = os.path.splitext(template_fname)[0]
+
+        template_mri_fname = os.path.join(template_path, template_fname)
+        template_control_fname = os.path.join(base_dir, 'Resources', '%s_%s_control.fcsv')
+        _ = [slicer.util.loadMarkupsFiducialList(template_control_fname % (template_basename, k)) for k in controls]
         template_mri_node = slicer.util.loadVolume(template_mri_fname, returnNode=True)[1]
-        template_control = slicer.util.loadMarkupsFiducialList(template_control_fname) # check load control nodes
-        template_control_nodes = {k : slicer.util.getNode('template_%s_control*' % k) for k in controls}
+        template_control = slicer.util.loadMarkupsFiducialList(template_control_fname)  # check load control nodes
+        template_control_nodes = {k: slicer.util.getNode('%s_%s_control*' % (template_basename, k)) for k in controls}
 
     shNode = slicer.vtkMRMLSubjectHierarchyNode.GetSubjectHierarchyNode(slicer.mrmlScene)
 
@@ -449,7 +501,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     fdir = os.path.split(skinFname)[0]
     all_files = os.listdir(fdir)
     scode = os.path.split(basename)[1]
-    sfiles = [f for f in all_files if f.startswith(scode)]
+    sfiles = [f for f in all_files if f.startswith(scode)]  # fix names that start with the same name
     sfiles = [os.path.join(fdir, f) for f in sfiles]
     fnames['skin'] = skinFname
     fnames['skull'] = basename + '_outer_skull_surface.vtk'
@@ -459,7 +511,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     if len(fnames['mri']) != 1:
      print(fnames)
      print('Inconsistent number of files')
-     return 0  # check correct return ?
+     return 1  # check correct return ?
     else:
         fnames['mri'] = fnames['mri'][0]
     self.subj = scode
@@ -475,7 +527,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
           self.subj_trans_node = slicer.util.loadTransform(self.fnames['trans'], returnNode=True)[1]
 
       except Exception as e:
-          print('Unable to load files') # error check ?
+          print('Unable to load files')  # error check ?
           print(e)
 
   def cleanSubjFiles(self):
@@ -484,7 +536,6 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
                       self.subj_mri_anon_node, self.subj_control_nodes['face'],
                       self.subj_control_nodes['earR'],
                       self.subj_control_nodes['earL']]
-
 
       for n in nodes_to_del:
           slicer.mrmlScene.RemoveNode(n)
