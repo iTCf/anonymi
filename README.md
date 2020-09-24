@@ -101,7 +101,9 @@ To automatically anonymize one or more MRIs follow these steps
 
 2. Press the _Run_ button on the Automatic Processing section.
 
-<img src="/Users/lpen/scripts/anonymi/Anonymi/Resources/imgs/man_runauto.png" alt="auto" style="zoom:50%;" />
+<img src="/Users/lpen/scripts/anonymi/Anonymi/Resources/imgs/man_runauto.png" alt="auto" width="280" />
+
+
 
 <br/>
 
