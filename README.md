@@ -14,16 +14,6 @@ For a detailed explanation of the procedure please refer to [add publication].
 
 ## Installation
 
-### Requirements
-
-It requires 3D Slicer (with two extra plug-ins). In order to install [3D Slicer](https://www.slicer.org/) please refer to their to their website. After it is installed, open 3D Slicer and go to the Extensions Manager (View > Extensions Manager). In the "Install Extensions" tab search for the VolumeClip and the SlicerElastix extensions and install them.
-
-AnonyMI uses some [Freesurfer](https://surfer.nmr.mgh.harvard.edu/) functions that are already included in it, but require a Freesurfer license to be used. Obtaining a Freesurfer license es free and fast. Fill this [form](https://surfer.nmr.mgh.harvard.edu/registration.html)  and you will receive it via e-mail. Copy the indicated text and put it inside the Resources folder of AnonyMI once you have downloaded it (see below).
-
-(Add image)
-
-<br/>
-
 ### Downloading
 
 In order to download Anony-MI clone or download this repository:
@@ -34,15 +24,50 @@ In order to download Anony-MI clone or download this repository:
 git clone (add final link)
 ```
 
-or use the download button from GitHub. 
+or use the download button from GitHub.
+
+Once you have it, place it in your computer on a folder of your choosing.
+
+<br/>
+
+### Requirements
+
+It requires 3D Slicer (with two extra plug-ins). In order to install [3D Slicer](https://www.slicer.org/) please refer to their to their website. After it is installed, open 3D Slicer and go to the Extensions Manager (View > Extensions Manager). In the "Install Extensions" tab search for the VolumeClip and the SlicerElastix extensions and install them.
+
+AnonyMI uses some [Freesurfer](https://surfer.nmr.mgh.harvard.edu/) functions that are already included in it, but require a Freesurfer license to be used. Obtaining a Freesurfer license es free and fast. Fill this [form](https://surfer.nmr.mgh.harvard.edu/registration.html)  and you will receive it via e-mail. Copy the indicated text and put it inside the Resources folder of AnonyMI once you have downloaded it. If you already have a freesurfer's license, just copy the file.
+
+```shell
+.
+├── Anonymi
+│   ├── Anonymi.py
+│   ├── Anonymi.pyc
+│   ├── CMakeLists.txt
+│   ├── Resources  <------------------- INTO THIS FOLDER
+│   │   ├── Icons
+│   │   ├── anonymi_cli.py
+│   │   ├── average
+│   │   ├── bin
+│   │   ├── imgs
+│   │   ├── lib
+│   │   ├── license.txt  <------------- HERE
+│   │   ├── run_anonymi.py
+│   │   ├── shell
+│   │   └── templates
+│   └── Testing
+│       ├── CMakeLists.txt
+│       └── Python
+├── Anonymi.png
+├── CMakeLists.txt
+└── README.md
+```
 
 <br/>
 
 ### Adding the plug-in
 
-Once you have downloaded it, open 3D Slicer, go to Settings (Edit > Application Settings) and in the Modules tab click on the Add button next to the Additional module paths section:
+Once you have downloaded it, open 3D Slicer, go to Settings (Edit > Application Settings) and in the Modules tab click on the Add button next to the Additional module paths section. This step has to be done only once.
 
-(Add image)
+<img src="Anonymi/Resources/imgs/man_add_plugin.png" alt="add" style="zoom:56%;" />
 
 <br/>
 
@@ -54,7 +79,7 @@ In both cases the procedure is divided in two steps. 1) Preparing the files (~10
 
 To open AnonyMI's interface go to the Modules menu in Slicer and under Anonymization you will find AnonyMI.
 
-(Add image)
+<img src="Anonymi/Resources/imgs/man_findanonymi.png" alt="find" style="zoom:65%;" />
 
 <br/>
 
@@ -64,9 +89,7 @@ This involves several steps that are executed in sequence by choosing one or mor
 
 Press the _Prepare Files_ button, navigate to the folder where you have your MRIs and choose one or more MRI files. If you choose multiple files their preparation will be performed in sequence. It is advisable to copy all the MRIs you want to anonymize on one folder, this way, selecting the files will be faster and you will always have a back-up.
 
-
-
-(Add image)
+<img src="Anonymi/Resources/imgs/man_prepare.png" alt="img" style="zoom:50%;" />
 
 <br/>
 
@@ -74,11 +97,11 @@ Press the _Prepare Files_ button, navigate to the folder where you have your MRI
 
 To automatically anonymize one or more MRIs follow these steps
 
-1. Press the button _Select files to Run_ in the Automatic Processing section, navigate to the folder where the MRIs are located and choose the files corresponding to the subject or subjects you want to process. The possible files to be selected will be highlighted.
-
-(Add image)
+1. Press the button _Select files to Run_ in the Automatic Processing section, navigate to the folder where the MRIs are located and choose the files corresponding to the subject or subjects you want to process. The possible files to be selected will be highlighted (you only need to select the files ending in _outer_skin_surface.vtk_).
 
 2. Press the _Run_ button on the Automatic Processing section.
+
+<img src="/Users/lpen/scripts/anonymi/Anonymi/Resources/imgs/man_runauto.png" alt="auto" style="zoom:50%;" />
 
 <br/>
 

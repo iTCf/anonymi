@@ -426,7 +426,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         print('--> Loading template')
         base_dir = os.path.split(slicer.modules.anonymi.path)[0]
         if template == 'IXI':
-            template_path = os.path.join(base_dir, 'Resources')
+            template_path = os.path.join(base_dir, 'Resources', 'templates')
             template_fname = 'IXI.nii'
             template_basename = template
         else:
