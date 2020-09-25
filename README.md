@@ -67,7 +67,7 @@ AnonyMI uses some [Freesurfer](https://surfer.nmr.mgh.harvard.edu/) functions th
 
 Once you have downloaded it, open 3D Slicer, go to Settings (Edit > Application Settings) and in the Modules tab click on the Add button next to the Additional module paths section. This step has to be done only once.
 
-<img src="Anonymi/Resources/imgs/man_add_plugin.png" alt="add" style="zoom:56%;" />
+![addplug](Anonymi/Resources/imgs/man_addplugin.png)
 
 <br/>
 
@@ -101,9 +101,7 @@ To automatically anonymize one or more MRIs follow these steps
 
 2. Press the _Run_ button on the Automatic Processing section.
 
-<img src="/Users/lpen/scripts/anonymi/Anonymi/Resources/imgs/man_runauto.png" alt="auto" width="280" />
-
-
+<img src="/Users/lpen/scripts/anonymi/Anonymi/Resources/imgs/man_runauto.png" alt="auto" style="zoom:50%;" />
 
 <br/>
 
