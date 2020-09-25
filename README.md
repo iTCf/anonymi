@@ -85,7 +85,9 @@ In both cases the procedure is divided in two steps. 1) Preparing the files (~10
 
 To open AnonyMI's interface go to the Modules menu in Slicer and under Anonymization you will find AnonyMI.
 
-<img src="Anonymi/Resources/imgs/man_findanonymi.png" alt="find" style="zoom:65%;" />
+<p align="center">
+  <img src="Anonymi/Resources/imgs/man_findanonymi.png" width="800"">
+</p>
 
 <br/>
 
@@ -95,7 +97,9 @@ This involves several steps that are executed in sequence by choosing one or mor
 
 Press the _Prepare Files_ button, navigate to the folder where you have your MRIs and choose one or more MRI files. If you choose multiple files their preparation will be performed in sequence. It is advisable to copy all the MRIs you want to anonymize on one folder, this way, selecting the files will be faster and you will always have a back-up.
 
-<img src="Anonymi/Resources/imgs/man_prepare.png" alt="img" style="zoom:50%;" />
+<p align="center">
+  <img src="Anonymi/Resources/imgs/man_prepare.png" width="300"">
+</p>
 
 <br/>
 
@@ -104,10 +108,13 @@ Press the _Prepare Files_ button, navigate to the folder where you have your MRI
 To automatically anonymize one or more MRIs follow these steps
 
 1. Press the button _Select files to Run_ in the Automatic Processing section, navigate to the folder where the MRIs are located and choose the files corresponding to the subject or subjects you want to process. The possible files to be selected will be highlighted (you only need to select the files ending in _outer_skin_surface.vtk_).
-
 2. Press the _Run_ button on the Automatic Processing section.
 
-<img src="/Users/lpen/scripts/anonymi/Anonymi/Resources/imgs/man_runauto.png" alt="auto" style="zoom:50%;" />
+<p align="center">
+  <img src="Anonymi/Resources/imgs/man_runauto.png" width="300"">
+</p>
+
+
 
 <br/>
 
