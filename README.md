@@ -67,7 +67,9 @@ AnonyMI uses some [Freesurfer](https://surfer.nmr.mgh.harvard.edu/) functions th
 
 Once you have downloaded it, open 3D Slicer, go to Settings (Edit > Application Settings) and in the Modules tab click on the Add button next to the Additional module paths section. This step has to be done only once.
 
-![addplug](Anonymi/Resources/imgs/man_addplugin.png)
+< img src="Anonymi/Resources/imgs/man_addplugin.png" width="500px"/ >
+
+
 
 <br/>
 
