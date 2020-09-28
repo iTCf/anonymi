@@ -4,7 +4,7 @@ Anony-Mi is a tool for anonymizing MRIs which preserves the subject's anatomical
 
 
 
-ADD IMAGE
+[Add Figure 1 after publication]
 
 
 
@@ -18,13 +18,11 @@ For a detailed explanation of the procedure please refer to [add publication].
 
 In order to download Anony-MI clone or download this repository:
 
- To do so, open a terminal, go to the folder you want to install download the software and run:
+ To do so use the download button from GitHub, or open a terminal, go to the folder you want to install download the software and run:
 
 ```
 git clone (add final link)
 ```
-
-or use the download button from GitHub.
 
 Once you have it, place it in your computer on a folder of your choosing.
 
@@ -34,7 +32,7 @@ Once you have it, place it in your computer on a folder of your choosing.
 
 It requires 3D Slicer (with two extra plug-ins). In order to install [3D Slicer](https://www.slicer.org/) please refer to their to their website. After it is installed, open 3D Slicer and go to the Extensions Manager (View > Extensions Manager). In the "Install Extensions" tab search for the VolumeClip and the SlicerElastix extensions and install them.
 
-AnonyMI uses some [Freesurfer](https://surfer.nmr.mgh.harvard.edu/) functions that are already included in it, but require a Freesurfer license to be used. Obtaining a Freesurfer license es free and fast. Fill this [form](https://surfer.nmr.mgh.harvard.edu/registration.html)  and you will receive it via e-mail. Copy the indicated text and put it inside the Resources folder of AnonyMI once you have downloaded it. If you already have a freesurfer's license, just copy the file.
+AnonyMI uses some [Freesurfer](https://surfer.nmr.mgh.harvard.edu/) functions that are already included in it, but require a Freesurfer license to be used. Obtaining a Freesurfer license es free and fast. Fill this [form](https://surfer.nmr.mgh.harvard.edu/registration.html) and you will receive the license via e-mail. Copy the indicated text and put it in a text file inside the Resources folder of AnonyMI once you have downloaded it. If you already have a freesurfer's license, just copy the file.
 
 ```shell
 .
@@ -79,7 +77,7 @@ Once you have downloaded it, open 3D Slicer, go to Settings (Edit > Application 
 
 ## Usage
 
-AnonyMI can be used either automatically or manually. Automatic operation will perform the whole process by simply pressing two buttons. It is the fastest way of performing the anonymization procedure. Manual operation allows for precise fine-tuning of the areas to be anonymized, which can be useful for particularly difficult cases.
+AnonyMI can be used either automatically or manually. Automatic operation will perform the whole process with very few clicks. It is the fastest way of performing the anonymization procedure. Manual operation allows for precise fine-tuning of the areas to be anonymized, which can be useful for particularly difficult cases.
 
 In both cases the procedure is divided in two steps. 1) Preparing the files (~10 minutes) and 2) Running the algorithm (~1 minute).
 
@@ -93,7 +91,7 @@ To open AnonyMI's interface go to the Modules menu in Slicer and under Anonymiza
 
 ### Preparing the files
 
-This involves several steps that are executed in sequence by choosing one or more MRI files.
+This involves several steps that are executed automatically and in sequence by choosing one or more MRI files.
 
 Press the _Prepare Files_ button, navigate to the folder where you have your MRIs and choose one or more MRI files. If you choose multiple files their preparation will be performed in sequence. It is advisable to copy all the MRIs you want to anonymize on one folder, this way, selecting the files will be faster and you will always have a back-up.
 
@@ -124,15 +122,17 @@ To run the anonymization in manual mode follow these steps.
 
 1. Load the files that have been prepared for the subject you want to anonymize (see Preparing Files above) using Slicer's interface:
 
-   (Add image)
+<p align="center">
+  <img src="Anonymi/Resources/imgs/man_getcontrol.png" width="800"">
+</p>
 
-2. Select the appropriate files on the _Input Volume_, _Surface to MRI transform_, _Outer skin model_, _Outer skull model_.
+1. Select the appropriate files on the _Input Volume_, _Surface to MRI transform_, _Outer skin model_, _Outer skull model_.
+2. At this point AnonyMI can identify the face and ears areas by itself or you can indicate them yourself (see below for the latter procedure). To find the face and ears areas press the _Get control points_ button as shown above.
+3. After the control points gave been found, check that the _Face control points_, _Right ear control points_ and _Left ear control points_ field are propertly set with their corresponding control points and press _Apply_.
 
-   (Add image)
-
-3. At this point AnonyMI can identify the face and ears areas by itself or you can indicate them yourself (see below for the latter procedure). To find the face and ears areas press the _Get control points_ button.
-
-4. Press _Apply_.
+<p align="center">
+  <img src="Anonymi/Resources/imgs/man_selectfiles.png" width="300"">
+</p>
 
 
 
@@ -142,13 +142,23 @@ After it finishes you will be able to see the anonymized MRI and also to create 
 
 #### Manual control points
 
-In the example above the control points used for finding the portions to be masked were automatically determined. However, in some cases it is preferable to set them manually, for example if there are certain non-standard areas that would need to be masked, or if the template doesn't match the subject, as would be the case for young subjects. 
+In the example above the control points used for finding the portions to be masked were automatically determined. However, in some cases it is preferable to set them manually, for example if there are certain non-standard areas that would need to be masked, or if the template doesn't match the subject well. 
 
 In order to manually assign the control points:
 
+1. First you will have to align the MRI with the 3D reconstructions using one of the files created by AnonyMI. In any of the MRI panels go tho the pin icon and select the link and the view options as shown below. You can check the alignment in the 3D panel. Then go to the _Transforms_ module, select the _outer_skin_ and _outer_skull_ surfaces and click the right pointing arrow to apply add them to the to-be transformed list. Make sure that the active transform in the _Transforms_ panel is the one corresponding to the subject you are processing. Finally select the two surfaces you just moved right and click the _Harden transform_ button (this will apply the transform and bring the two surfaces back to the left) as shown below.
 
+   <p align="center">
+     <img src="Anonymi/Resources/imgs/man_manualcontrol1.png" width="800"">
+   </p>
 
-(Add instructions)
+2. Go to the _Markups_ module. Click on _Create e new MarkupsFiducial as..._ and name it __face__. Using the _Create-and-place Fiducial_ tool mark the points that define the area the you want to cover. Name this points S (for Superior), I (for Inferior), R (for Right) and L (for Left). Then repeat the process to create a new List named __earL__ for the left ear and __earR__ for the right ear. For the ears name the points (A for Anterior), P (for Posterior), S (for Superior) and I (for Inferior).
+
+   <p align="center">
+     <img src="Anonymi/Resources/imgs/man_manualcontrolmark.png" width="800"">
+   </p>
+
+3. Select the created fiducials in the control points fields of the AnonyMI module and press Run.
 
 <br/>
 
@@ -171,7 +181,12 @@ To run the process, either manually or automatically:
 1. Mark the _Use Custom Template_ box in the Template section
 
 2. Press the _Select Custom Template_ button in the Template section and select the MRI you want to use.
+
 3. Run the anonymization process either manually or automatically as explained above.
+
+   <p align="center">
+     <img src="Anonymi/Resources/imgs/man_customtempl.png" width="800"">
+   </p>
 
 <br/>
 
@@ -185,9 +200,15 @@ To create a 3D render of the anoymized MRI:
 
 The render will appear on the 3D View panel.
 
+<p align="center">
+  <img src="Anonymi/Resources/imgs/man_finalresult.png" width="800"">
+</p>
 
 
 
+#### Troubleshooting
+
+If you find any problem or difficulty please open an issue on this repository.
 
 
 

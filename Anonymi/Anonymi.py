@@ -249,69 +249,9 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     # Add vertical spacer
     self.layout.addStretch(1)
 
-  def getFsEnv(self):
-      """Create an environment for elastix where executables are added to the path"""
-      fsBinDir = '/Users/lpen/scripts/anonymi/Anonymi/Resources/bin:/usr/lib:'
-      fsEnv = os.environ.copy()
-      fsEnv["PATH"] = fsBinDir + os.pathsep + fsEnv["PATH"] if fsEnv.get("PATH") else fsBinDir
-      fsEnv['DYLD_LIBRARY_PATH'] = '/Users/lpen/scripts/anonymi/Anonymi/Resources/lib/gcc/lib'
-      fsEnv['FREESURFER_HOME'] = '/Users/lpen/scripts/anonymi/Anonymi/Resources'
-      return fsEnv
-
   def onPrepareFiles(self):
-      # todo: add parameters for choosing what to run
-      prepareFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~", "")  # TODO: specify only mri types
-      self.prepareFiles = prepareFiles
-      fsEnv = self.getFsEnv()
-
-      for f in prepareFiles:
-          print('Preparing file: %s' % f)
-          file_spl = os.path.split(f)
-          file_dir = file_spl[0]
-          file_name = file_spl[1]
-          base_name = file_name.split('.')[0]
-          logfile = open('%s/log.txt' % file_dir, 'w')
-
-          # run watershed
-          command = 'mri_watershed -useSRAS -surf %s/%s %s %s/bems/ws' % (file_dir, base_name, f, file_dir)
-          p = sp.Popen(shlex.split(command), env=fsEnv, stdout=logfile, stderr=logfile)
-          p.wait()
-          print('Watershed Done: %s' % f)
-
-          # convert surfaces to vtk
-          surfs = ('outer_skull', 'outer_skin')
-          for s in surfs:
-              file_s = '%s/%s_%s_surface' % (file_dir, base_name, s)
-              command = 'mris_convert %s %s' % (file_s, file_s+'.vtk')
-              p = sp.Popen(shlex.split(command), env=fsEnv, stdout=logfile, stderr=logfile)
-              p.wait()
-
-          # create alignment file
-          command = 'mri_info %s --cras' % f
-          cras = sp.check_output(shlex.split(command), env=fsEnv, stderr=logfile)
-          cras = cras.strip('\n').split(' ')
-          cras = [round(float(n), 2) for n in cras]
-          cras[2] *= -1  # invert for ITK
-
-          text = ('#Insight Transform File V1.0\n'
-                  '#Transform 0\n'
-                  'Transform: AffineTransform_double_3_3\n'
-                  'Parameters: 1 0 0 0 1 0 0 0 1 %s %s %s\n'
-                  'FixedParameters: 0 0 0\n' % (cras[0], cras[1], cras[2]))
-
-          file_trans = '%s/%s_surf2mri.tfm' % (file_dir, base_name)
-          with open(file_trans, 'w') as f_tr:
-              f_tr.write(text)
-          print('Alignment Transform Done: %s' % f)
-          logfile.close()
-
-          # clean
-          s_to_clean = ('brain', 'inner_skull', 'outer_skull', 'outer_skin')
-          for s in s_to_clean:
-              s_file = '%s/%s_%s_surface' % (file_dir, base_name, s)
-              if os.path.isfile(s_file):
-                os.remove(s_file)
-          print('Prepare Files Done: %s' % f)
+    logic = AnonymiLogic()
+    logic.prepareFiles()
 
   def onSelect(self):
     self.applyButton.enabled = self.inputSelector.currentNode() and self.outerSkinModel.currentNode() and \
@@ -395,6 +335,75 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
   # TODO: Manual (pdf) & Logo
   # TODO: Pretty logging
   # TODO: fix CLI
+
+  def getFsEnv(self):
+      """Create an environment for elastix where executables are added to the path"""
+      fsBinDir = '/Users/lpen/scripts/anonymi/Anonymi/Resources/bin:/usr/lib:'
+      fsEnv = os.environ.copy()
+      fsEnv["PATH"] = fsBinDir + os.pathsep + fsEnv["PATH"] if fsEnv.get("PATH") else fsBinDir
+      fsEnv['DYLD_LIBRARY_PATH'] = '/Users/lpen/scripts/anonymi/Anonymi/Resources/lib/gcc/lib'
+      fsEnv['FREESURFER_HOME'] = '/Users/lpen/scripts/anonymi/Anonymi/Resources'
+      return fsEnv
+
+  def prepareFiles(self, do_ws=False, do_conv=False, do_tfm=True):
+      # todo: add parameters for choosing what to run
+      prepareFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~", "")  # TODO: specify only mri types
+      self.prepareFiles = prepareFiles
+      fsEnv = self.getFsEnv()
+
+      for f in prepareFiles:
+          print('Preparing file: %s' % f)
+          file_spl = os.path.split(f)
+          file_dir = file_spl[0]
+          file_name = file_spl[1]
+          base_name = file_name.split('.')[0]
+          logfile = open('%s/%s_log.txt' % (file_dir, base_name), 'w')
+
+          # run watershed
+          if do_ws:
+              command = 'mri_watershed -useSRAS -surf %s/%s %s %s/bems/ws' % (file_dir, base_name, f, file_dir)
+              p = sp.Popen(shlex.split(command), env=fsEnv, stdout=logfile, stderr=logfile)
+              p.wait()
+              print('Watershed Done: %s' % f)
+
+          # convert surfaces to vtk
+          if do_conv:
+              surfs = ('outer_skull', 'outer_skin')
+              for s in surfs:
+                  file_s = '%s/%s_%s_surface' % (file_dir, base_name, s)
+                  command = 'mris_convert %s %s' % (file_s, file_s+'.vtk')
+                  p = sp.Popen(shlex.split(command), env=fsEnv, stdout=logfile, stderr=logfile)
+                  p.wait()
+
+          # create alignment file
+          if do_tfm:
+              command = 'mri_info %s --cras' % f
+              cras = sp.check_output(shlex.split(command), env=fsEnv, stderr=logfile)
+              cras = cras.strip('\n').split(' ')
+              cras = [round(float(n), 2) for n in cras]
+              cras[2] *= -1  # invert for ITK
+
+              text = ('#Insight Transform File V1.0\n'
+                      '#Transform 0\n'
+                      'Transform: AffineTransform_double_3_3\n'
+                      'Parameters: 1 0 0 0 1 0 0 0 1 %s %s %s\n'
+                      'FixedParameters: 0 0 0\n\n' % (cras[0], cras[1], cras[2]))
+
+              file_trans = '%s/%s_surf2mri.tfm' % (file_dir, base_name)
+              with open(file_trans, 'w') as f_tr:
+                  f_tr.write(text)
+              print('Alignment Transform Done: %s' % f)
+          logfile.close()
+
+          # clean
+          s_to_clean = ('brain', 'inner_skull', 'outer_skull', 'outer_skin')
+          for s in s_to_clean:
+              s_file = '%s/%s_%s_surface' % (file_dir, base_name, s)
+              if os.path.isfile(s_file):
+                os.remove(s_file)
+          print('Prepare Files Done: %s' % f)
+
+
 
   def find_closest_point_coords(self, cloud, point):
     dist_all = np.sqrt(np.sum((cloud - point) ** 2, axis=1))
