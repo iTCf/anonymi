@@ -476,7 +476,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
             template_basename = os.path.splitext(template_fname)[0]
 
         template_mri_fname = os.path.join(template_path, template_fname)
-        template_control_fname = os.path.join(base_dir, 'Resources', '%s_%s_control.fcsv')
+        template_control_fname = os.path.join(base_dir, 'Resources', 'templates', '%s_%s_control.fcsv')
         _ = [slicer.util.loadMarkupsFiducialList(template_control_fname % (template_basename, k)) for k in controls]
         template_mri_node = slicer.util.loadVolume(template_mri_fname, returnNode=True)[1]
         template_control = slicer.util.loadMarkupsFiducialList(template_control_fname)  # check load control nodes
