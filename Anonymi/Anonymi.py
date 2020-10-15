@@ -548,7 +548,9 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     fnames['skin'] = skinFname
     fnames['skull'] = basename + '_outer_skull_surface.vtk'
     fnames['trans'] = basename + '_surf2mri.tfm'
-    fnames['mri'] = [f for f in sfiles if f not in fnames.values()]
+    fnames['mri'] = [f for f in sfiles if (f not in fnames.values()) and
+                     (not f.endswith('.txt')) and
+                     ('_anonymi' not in os.path.split(f)[-1])]
 
     if len(fnames['mri']) != 1:
      print(fnames)
