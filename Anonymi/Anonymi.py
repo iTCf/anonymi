@@ -403,8 +403,6 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
                 os.remove(s_file)
           print('Prepare Files Done: %s' % f)
 
-
-
   def find_closest_point_coords(self, cloud, point):
     dist_all = np.sqrt(np.sum((cloud - point) ** 2, axis=1))
     min_dist_ix = np.argmin(dist_all)
