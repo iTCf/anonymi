@@ -46,6 +46,20 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 
     # Instantiate and connect widgets ...
 
+    # Status Area
+    #
+    statusCollapsibleButton = ctk.ctkCollapsibleButton()
+    statusCollapsibleButton.text = "Status"
+    self.layout.addWidget(statusCollapsibleButton)
+
+    # Layout - Status
+    statusFormLayout = qt.QFormLayout(statusCollapsibleButton)
+    self.statusLabel = qt.QLabel('Not Running')
+    self.statusLabel.setFixedHeight(30)
+    self.statusLabel.setAlignment(qt.Qt.AlignCenter)
+    self.statusLabel.setStyleSheet("background-color: lightgray")
+    statusFormLayout.addRow(self.statusLabel)
+
     # Prepare Area
     #
     prepareCollapsibleButton = ctk.ctkCollapsibleButton()
@@ -251,21 +265,32 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 
   def onPrepareFiles(self):
     logic = AnonymiLogic()
+    self.statusLabel.setText("Running: Prepare Files")
+    self.statusLabel.setStyleSheet("background-color: green")
     logic.prepareFiles()
+    self.statusLabel.setText("Not Running")
+    self.statusLabel.setStyleSheet("background-color: lightgray")
+
 
   def onSelect(self):
     self.applyButton.enabled = self.inputSelector.currentNode() and self.outerSkinModel.currentNode() and \
                                self.outerSkullModel.currentNode() and self.faceControl.currentNode() and \
                                self.earRControl.currentNode(), self.earLControl.currentNode()
 
-
   def onApplyButton(self):
     logic = AnonymiLogic()
     logic.subj = self.inputSelector.currentNode().GetName()
+
+    self.statusLabel.setText("Running: Anonymization")
+    self.statusLabel.setStyleSheet("background-color: green")
+
     logic.run(self.inputSelector.currentNode(), self.outerSkinModel.currentNode(),
               self.outerSkullModel.currentNode(), self.faceControl.currentNode(),
               self.earRControl.currentNode(), self.earLControl.currentNode(),
               isBatch=False)
+
+    self.statusLabel.setText("Not Running")
+    self.statusLabel.setStyleSheet("background-color: lightgray")
 
   def onGetControl(self):
     logic = AnonymiLogic()
@@ -278,8 +303,14 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
         template = 'IXI'
         print('-----> Using IXI template')
 
+    self.statusLabel.setText("Running: Get Control Points")
+    self.statusLabel.setStyleSheet("background-color: green")
+
     logic.getControl(self.outerSkinModel.currentNode(),
                      self.inputSelector.currentNode(), template)
+
+    self.statusLabel.setText("Not Running")
+    self.statusLabel.setStyleSheet("background-color: lightgray")
 
   def onSelectBatchFiles(self):
     batchFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~", "Skin surfaces (*skin*.vtk)") # use vtk to avoid specyfing mri file type
@@ -290,6 +321,8 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
   def onRunBatch(self):
       print('---> Running Batch')
       logic = AnonymiLogic()
+      self.statusLabel.setText("Running: Batch Anonymization")
+      self.statusLabel.setStyleSheet("background-color: green")
 
       for f in self.batchFiles:
           print('------> Input file: %s' % os.path.split(f)[1])
@@ -315,6 +348,8 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
                     logic.subj_control_nodes['earR'], logic.subj_control_nodes['earL'],
                     isBatch=True)
           logic.cleanSubjFiles()
+      self.statusLabel.setText("Not Running")
+      self.statusLabel.setStyleSheet("background-color: lightgray")
 
   def onSelectTemplate(self):
       templFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~",
