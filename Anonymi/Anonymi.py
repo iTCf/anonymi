@@ -380,7 +380,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
       fsEnv['FREESURFER_HOME'] = '/Users/lpen/scripts/anonymi/Anonymi/Resources'
       return fsEnv
 
-  def prepareFiles(self, do_ws=False, do_conv=False, do_tfm=True):
+  def prepareFiles(self, do_ws=True, do_conv=True, do_tfm=True):
       # todo: add parameters for choosing what to run
       prepareFiles = qt.QFileDialog.getOpenFileNames(None, "Choose files", "~", "")  # TODO: specify only mri types
       self.prepareFiles = prepareFiles
