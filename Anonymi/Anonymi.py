@@ -741,7 +741,12 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     T1_anon.Modified()
 
     if isBatch:
-        slicer.util.saveNode(T1_anon, self.fnames['mri'].replace(self.subj, self.subj + '_anonymi'))
+        fname_spl = os.path.split(self.fnames['mri'])
+        new_fname = fname_spl[-1].replace(self.subj, self.subj + '_anonymi')
+        new_fname, ext = os.path.splitext(new_fname)
+        fname_save = os.path.join(fname_spl[0], new_fname + '.nii')
+
+        slicer.util.saveNode(T1_anon, fname_save)
     slicer.mrmlScene.RemoveNode(mask)
     self.subj_mri_anon_node = T1_anon
     slicer.util.setSliceViewerLayers(background=T1_anon)
