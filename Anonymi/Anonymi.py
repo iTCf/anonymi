@@ -372,12 +372,13 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
   # TODO: fix CLI
 
   def getFsEnv(self):
-      """Create an environment for elastix where executables are added to the path"""
-      fsBinDir = '/Users/lpen/scripts/anonymi/Anonymi/Resources/bin:/usr/lib:'
+      """Create an environment for AnonyMI where executables are added to the path"""
+      base_dir = os.path.split(slicer.modules.anonymi.path)[0]
+      fsBinDir = '%s/Resources/bin:/usr/lib:' % base_dir
       fsEnv = os.environ.copy()
       fsEnv["PATH"] = fsBinDir + os.pathsep + fsEnv["PATH"] if fsEnv.get("PATH") else fsBinDir
-      fsEnv['DYLD_LIBRARY_PATH'] = '/Users/lpen/scripts/anonymi/Anonymi/Resources/lib/gcc/lib'
-      fsEnv['FREESURFER_HOME'] = '/Users/lpen/scripts/anonymi/Anonymi/Resources'
+      fsEnv['DYLD_LIBRARY_PATH'] = '%s/Resources/lib/gcc/lib' % base_dir
+      fsEnv['FREESURFER_HOME'] = '%s/Resources' % base_dir
       return fsEnv
 
   def prepareFiles(self, do_ws=True, do_conv=True, do_tfm=True):
