@@ -365,11 +365,6 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 #
 
 class AnonymiLogic(ScriptedLoadableModuleLogic):
-  # TODO: Snapshots
-  # TODO: Better interface for batch files to run
-  # TODO: Manual (pdf) & Logo
-  # TODO: Pretty logging
-  # TODO: fix CLI
 
   def getFsEnv(self):
       """Create an environment for AnonyMI where executables are added to the path"""
@@ -598,7 +593,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     return mask_control
 
   def run(self, inputVolume, outerSkinModel, outerSkullModel, faceControl,
-          earRControl, earLControl, isBatch):
+          earRControl, earLControl, isBatch, debug=True):
 
     """
     Run the actual algorithm
@@ -751,7 +746,8 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         fname_save = os.path.join(fname_spl[0], new_fname + '.nii')
 
         slicer.util.saveNode(T1_anon, fname_save)
-    slicer.mrmlScene.RemoveNode(mask)
+    if not debug:
+        slicer.mrmlScene.RemoveNode(mask)
     self.subj_mri_anon_node = T1_anon
     slicer.util.setSliceViewerLayers(background=T1_anon)
     logging.info('--> Processing completed')
