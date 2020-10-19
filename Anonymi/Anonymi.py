@@ -6,7 +6,7 @@ from slicer.ScriptedLoadableModule import *
 import logging
 import subprocess as sp
 import shlex
-
+import pprint
 #
 # Anonymi
 #
@@ -324,12 +324,12 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
       self.statusLabel.setText("Running: Batch Anonymization")
       self.statusLabel.setStyleSheet("background-color: green")
 
-      for f in self.batchFiles:
-          print('------> Input file: %s' % os.path.split(f)[1])
+      for ix_f, f in enumerate(self.batchFiles):
+          print('- (%s/%s)Input file: %s' % (ix_f+1, len(self.batchFiles),
+                                             os.path.split(f)[1]))
 
           logic.getFileNames(f)
-          print(logic.fnames)
-          # pretty logging
+          pprint.pprint(logic.fnames)
 
           logic.loadFiles()
 
@@ -337,10 +337,10 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 
           if self.custTempCheckb.isChecked():
               template = self.templFiles[0]
-              print('-----> Using custom template: %s' % template)
+              print('--> Using custom template: %s' % template)
           else:
               template = 'IXI'
-              print('-----> Using IXI template')
+              print('--> Using IXI template')
 
           logic.getControl(logic.subj_skin_node, logic.subj_mri_node, template)
           logic.run(logic.subj_mri_node, logic.subj_skin_node,
@@ -493,7 +493,9 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         clonedNode.SetName(c)
         subj_control_nodes[c] = clonedNode
 
-    print('--> Running Elastix Registration')
+    logging.info('--> Running Elastix Registration\n')
+    logging.info('-'*20)
+
 
     elastix_logic = Elastix.ElastixLogic()
     outputVolume = slicer.vtkMRMLScalarVolumeNode()
@@ -501,7 +503,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     outputVolume.CreateDefaultDisplayNodes()
 
     outputTransform = slicer.vtkMRMLTransformNode()
-    print(type(inputVolume))
+
     parameterFilenames = elastix_logic.getRegistrationPresets()[0][5] # 5 = RegistrationPresets_ParameterFilenames
     elastix_logic.registerVolumes(inputVolume, template_mri_node,
                                   parameterFilenames=parameterFilenames,
@@ -527,7 +529,8 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
             print(world)
             proj_coords = self.find_closest_point_coords(surf_arr, world[:3])
             subj_control_nodes[k].SetNthFiducialPositionFromArray(i, proj_coords)
-    print('--> Control Points Registraion Finished')
+    logging.info('-'*20)
+    logging.info('\n--> Control Points Registraion Finished')
 
     self.subj_control_nodes = subj_control_nodes
     slicer.mrmlScene.RemoveNode(outputVolume)
@@ -564,15 +567,14 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
   def loadFiles(self):
       try:
-          print('Loading files')
-          print(self.fnames)
+          logging.info('- Loading files')
           self.subj_mri_node = slicer.util.loadVolume(self.fnames['mri'], returnNode=True)[1]
           self.subj_skin_node = slicer.util.loadModel(self.fnames['skin'], returnNode=True)[1]
           self.subj_skull_node = slicer.util.loadModel(self.fnames['skull'], returnNode=True)[1]
           self.subj_trans_node = slicer.util.loadTransform(self.fnames['trans'], returnNode=True)[1]
 
       except Exception as e:
-          print('Unable to load files')  # error check ?
+          print('- Unable to load files')  # error check ?
           print(e)
 
   def cleanSubjFiles(self):
@@ -602,7 +604,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     Run the actual algorithm
     """
 
-    logging.info('Processing started')
+    logging.info('--> Masking started')
     ## anonymization
 
     # Clone T1
@@ -614,18 +616,18 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
     vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, False, 255, T1_anon)
 
-    logging.info('Creating mask')
+    logging.info('-Creating mask')
     mask = volumesLogic.CloneVolume(slicer.mrmlScene, T1_anon, 'mask')
 
     vclip.clipVolumeWithModel(T1_anon, outerSkullModel, False, 255, True, 0, mask)
 
-    logging.info('Applying mask')
+    logging.info('-Applying mask')
 
     mask_data = slicer.util.arrayFromVolume(mask)
 
-    min_rand, max_rand = np.percentile(mask_data[mask_data !=0 ], [40 ,80])
-    logging.info(min_rand)
-    logging.info(max_rand)
+    min_rand, max_rand = np.percentile(mask_data[mask_data != 0], [40, 80])
+    logging.info('Min random value: %s' % min_rand)
+    logging.info('Max random value: %s' % max_rand)
 
     mask_data = mask_data != 0
 
@@ -665,20 +667,20 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     # find volume orientation
     volumeIjkToRas = vtk.vtkMatrix4x4()
     T1_anon.GetIJKToRASMatrix(volumeIjkToRas)
-    logging.info(volumeIjkToRas)
-    ijk_to_ras = [volumeIjkToRas.GetElement(x,y) for x in range(3) for y in range(3)]
-    ijk_to_ras = np.array(ijk_to_ras).reshape(3,3)
+    # logging.info(volumeIjkToRas)
+    ijk_to_ras = [volumeIjkToRas.GetElement(x, y) for x in range(3) for y in range(3)]
+    ijk_to_ras = np.array(ijk_to_ras).reshape(3, 3)
     ijk_to_ras_round = np.rint(ijk_to_ras)
 
-    logging.info(ijk_to_ras)
-    logging.info(ijk_to_ras_round)
+    #logging.info(ijk_to_ras)
+    #logging.info(ijk_to_ras_round)
 
     directions = {k: np.argmax(np.abs(ijk_to_ras_round[i,:])) for i, k in enumerate(['R', 'A', 'S'])}
     signs = {k: ijk_to_ras_round[i, directions[k]] for i, k in enumerate(['R', 'A', 'S'])}
     order = [k for i in range(3) for k in directions.keys() if directions[k] == i]
-    logging.info(directions)
-    logging.info(signs)
-    logging.info(order)
+    logging.info('Directions: %s' % directions)
+    logging.info('Signs: %s' % signs)
+    logging.info('Order: %s' % order)
 
     mask_control = np.zeros(shape, dtype=bool)
 
@@ -686,9 +688,10 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         i = vox_coords[con][labels[con].index('I')][directions['S']]
         s = vox_coords[con][labels[con].index('S')][directions['S']]
 
-        min_S = np.min((i,s)) # get span of the mask in the inferior-superior axis
-        max_S = np.max((i,s))
+        min_S = np.min((i, s)) # get span of the mask in the inferior-superior axis
+        max_S = np.max((i, s))
 
+        logging.info('Control: %s' % con)
         logging.info('min s %s' % min_S)
         logging.info('max s %s' % max_S)
 
@@ -751,7 +754,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     slicer.mrmlScene.RemoveNode(mask)
     self.subj_mri_anon_node = T1_anon
     slicer.util.setSliceViewerLayers(background=T1_anon)
-    logging.info('Processing completed')
+    logging.info('--> Processing completed')
     return True
 
 
