@@ -12,12 +12,12 @@ For a detailed explanation of the procedure please refer to [add publication].
 
 ### Downloading
 
-In order to download Anony-MI clone or download the repository [add repository link]:
+In order to download Anony-MI clone or download the repository https://github.com/iTCf/anonymi:
 
 Download the .zip using the _Code_ button from on GitHub and place the file in your computer on a folder of your choosing and unzip it. Or, if you are a git user, open a terminal, go to the folder you want to install download the software and run:
 
 ```
-git clone (add final link)
+git clone git@github.com:iTCf/anonymi.git
 ```
 
 
@@ -212,5 +212,9 @@ chmod 755 *
 
 
 
-If you find any other problem or difficulty please open an issue on our GitHub repository [add link]. Please submit the error logs (see above) when posting issues. If you would like to contribute please join us on GitHub.
+If you find any other problem or difficulty please open an issue on our GitHub repository https://github.com/iTCf/anonymi. Please submit the error logs (see above) when posting issues. 
+
+
+
+If you would like to contribute please join us on GitHub.
 
