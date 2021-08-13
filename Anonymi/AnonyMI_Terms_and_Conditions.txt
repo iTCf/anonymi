@@ -1,0 +1,36 @@
+ANOMYMI CONDITION OF USE
+
+Whereas:
+A.	The University, in the frame of the Human Bran Project (HBP), founded by the European Commission within the Horizon 2020 Programme, has developed the AnonyMI Software (hereinafter "AnonyMI");
+B.	AnonyMI authors are Andrea Pigorini and Ezequiel Mikulan of the Department of Biomedical and Clinical Sciences 'L. Sacco';
+C.	AnonyMI uses three functions that belong to Freesurfer, for which please refer to the following link about the its terms of use: https://surfer.nmr.mgh.harvard.edu/registration.html;
+D.	The University, in accordance with the principles of HBP, is willing to make AnonyMI available free of costs to the scientific community applying the following principles of the Creative Commons licenses: (i) credits to the University and the Authors must be provided; (ii) AnonyMI's economic exploitation is not permitted; (iii) modifications of AnonyMI are possible only if made evident to others users.
+E.	The Users interested in obtaining a non-exclusive license to use AnonyMI, must accept the conditions and terms set forth below.
+By downloading AnonyMI, the User accepts the following terms:
+1.	The use of AnonyMI is granted as a nonexclusive, non-transferable royalty-free license;
+2.	AnonyMI is granted for any purposes but without any warranty; 
+3.	AnonyMI has to be used in compliance with all applicable international, federal, state and local laws and regulations.
+
+USER PERMISSIONS AND OBLIGATIONS 
+1.	The User can:
+a.	Use unmodified version of AnonyMI, with the only obligation to mention the Authors and the University;
+b.	Make, run and distribute modified versions of AnonyMI, with the obligation to clearly mark the modified version as changed by the User with respect to the original;
+
+2.	The User cannot:
+a.	Modify AnonyMI using patented technologies and/or materials covered by any not open Intellectual propriety or industrial right that would make the modifications not free;
+b.	Use AnonyMI in breach of the terms and conditions provided in this statement;
+c.	Use the University name and logo for marketing purposes.
+
+3.	Despite the open access, AnonyMI is a copyrighted work of the Authors and remains the sole property of the University and the Authors who generated it. It is strictly forbidden for the User to: (i) to sell or distribute AnonyMI; (ii) to sublicense or transfer AnonyMI to third parties.
+4.	The User accepts any and all liability for any damages or injuries resulting from User possession or use and/or modification of AnonyMI
+
+NO WARRANTY AND INDEMNIFICATION
+5.	AnonyMI is experimental in nature and is provided “as is”, without any warranty as to its safety or fitness for any particular purpose or use. 
+6.	The University and the Authors make no representation or warranty that the use of AnonyMI will not infringe any patent, copyright, trademark, or other proprietary right.
+7.	The User undertakes to indemnify, defend and hold harmless the University and the Authors, its officers, employees and agents from and against any liability, damages, losses, claims, including legal expenses and reasonable attorney’s fees, demands, or causes of action whatsoever, including without limitation those arising on account of any injury or death of persons or damage to property caused by, or arising out of, or resulting from, the use and/or modification of AnonyMI for whatever purposes, and/or as a consequence of the non-observance by the User of the obligations provided under this statement and/or by the non-observance of provisions of law, regulations or decisions issued by the competent authorities.
+8.	The University and the Authors disclaim any liability for damage to any computer system resulting from accessing or downloading AnonyMI and relative information.
+
+GOVERNING LAW AND JURISDICTION
+9.	These Term and Condition shall be governed according to the Italian Law. You agree that any disputes in connection with this agreement or its enforcement shall be resolved in a court of competent jurisdiction in Italy.
+
+Downloading AnonyMI, I declare to have read, understood, confirmed and accepted these conditions of use. 
