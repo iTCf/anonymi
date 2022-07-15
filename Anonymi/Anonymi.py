@@ -551,9 +551,13 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
                      (not f.endswith('.txt')) and
                      ('_anonymi' not in os.path.split(f)[-1])]
 
+    if any(['.hdr' in f for f in fnames['mri']]):
+        fnames['mri'] = [f for f in fnames['mri'] if '.hdr' not in f]
+        print('Removing .hdr file to avoid duplicates')
+
     if len(fnames['mri']) != 1:
      print(fnames)
-     print('Inconsistent number of files')
+     print('\n\n Inconsistent number of files \n\n')
      return 1  # check correct return ?
     else:
         fnames['mri'] = fnames['mri'][0]
