@@ -2,9 +2,8 @@
 
 Anony-Mi is a tool for anonymizing MRIs which preserves the subject's anatomical geometry. It works as a 3D Slicer Extension and can also be used as a standalone command line script.
 
-[Add Figure 1 after publication]
 
-For a detailed explanation of the procedure please refer to [add publication].
+For a detailed explanation of the procedure please refer to [A comparative study between state-of-the-art MRI deidentification and AnonyMI, a new method combining re-identification risk reduction and geometrical preservation](https://onlinelibrary.wiley.com/doi/full/10.1002/hbm.25639).
 
 <br/>
 
