@@ -557,7 +557,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
     if len(fnames['mri']) != 1:
      print(fnames)
-     print('\n\n Inconsistent number of files \n\n')
+     print('\n\n Inconssistent number of files \n\n')
      return 1  # check correct return ?
     else:
         fnames['mri'] = fnames['mri'][0]
