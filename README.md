@@ -5,6 +5,10 @@ Anony-Mi is a tool for anonymizing MRIs which preserves the subject's anatomical
 
 For a detailed explanation of the procedure please refer to [A comparative study between state-of-the-art MRI deidentification and AnonyMI, a new method combining re-identification risk reduction and geometrical preservation](https://onlinelibrary.wiley.com/doi/full/10.1002/hbm.25639).
 
+If you use this software in a scientific publication please cite:
+
+Mikulan, E., Russo, S., Zauli, F.M., d’Orio, P., Parmigiani, S., Favaro, J., Knight, W., Squarza, S., Perri, P., Cardinale, F., Avanzini, P., Pigorini, A., 2021. A comparative study between state-of-the-art MRI deidentification and AnonyMI, a new method combining re-identification risk reduction and geometrical preservation. Human Brain Mapping 42, 5523–5534. https://doi.org/10.1002/hbm.25639
+
 <br/>
 
 ## Installation
