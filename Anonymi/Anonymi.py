@@ -46,7 +46,7 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
     ScriptedLoadableModuleWidget.setup(self)
 
     # Instantiate and connect widgets ...
-
+    self.logic = AnonymiLogic()
     # Status Area
     #
     statusCollapsibleButton = ctk.ctkCollapsibleButton()
@@ -329,7 +329,7 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
                                              os.path.split(f)[1]))
 
           logic.getFileNames(f)
-          if len(logic.fnames['mri']) != 1:
+          if any([type(f) == list for f in logic.fnames.values()]):
               print(logic.fnames)
               print('\n-->Inconsistent number of files\n')
               for k in logic.fnames.keys():
@@ -427,8 +427,14 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
           if do_tfm:
               command = 'mri_info %s --cras' % f
               cras = sp.check_output(shlex.split(command), env=fsEnv, stderr=logfile)
+
               if type(cras) == bytes:
                   cras = cras.decode('utf-8')
+
+              if 'NIFTI_UNITS_UNKNOWN' in cras:
+                  print('NIFTI UNITS UNKNOWN - Assumming mm')
+                  cras = cras.split('\n')[-2]
+
               cras = cras.strip('\n').split(' ')
               cras = [round(float(n), 2) for n in cras]
               cras[2] *= -1  # invert for ITK
@@ -575,7 +581,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
     if len(fnames['mri']) != 1:
      print(fnames)
-     print('\n\n Inconssistent number of files \n\n')
+     print('\n\n Inconsistent number of files \n\n')
      return 1  # check correct return ?
     else:
         fnames['mri'] = fnames['mri'][0]
@@ -591,7 +597,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
           slicerVersion = slicer.app.applicationVersion
 
-          if '4.11' in slicerVersion:
+          if (slicerVersion.startswith('4.11')) or (slicerVersion.startswith('5.')):
               self.subj_skin_node = slicer.modules.models.logic().AddModel(
                                     self.fnames['skin'], slicer.vtkMRMLStorageNode.CoordinateSystemRAS)
               self.subj_skull_node = slicer.modules.models.logic().AddModel(
