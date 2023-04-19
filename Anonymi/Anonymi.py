@@ -573,7 +573,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     fnames['trans'] = basename + '_surf2mri.tfm'
     fnames['mri'] = [f for f in sfiles if (f not in fnames.values()) and
                      (not f.endswith('.txt')) and
-                     ('_anonymi' not in os.path.split(f)[-1])]
+                     ('_anonymi' not in os.path.split(f)[-1]) and f.startswith(basename+'.')]
 
     if any(['.hdr' in f for f in fnames['mri']]):
         fnames['mri'] = [f for f in fnames['mri'] if '.hdr' not in f]
