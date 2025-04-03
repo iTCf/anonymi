@@ -523,7 +523,8 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
     outputTransform = slicer.vtkMRMLTransformNode()
 
-    parameterFilenames = elastix_logic.getRegistrationPresets()[0][5] # 5 = RegistrationPresets_ParameterFilenames
+    preset = elastix_logic.getRegistrationPresets()[0]
+    parameterFilenames = preset.getParameterFiles()
     elastix_logic.registerVolumes(inputVolume, template_mri_node,
                                   parameterFilenames=parameterFilenames,
                                   outputVolumeNode=outputVolume,
