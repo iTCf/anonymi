@@ -1,5 +1,8 @@
 # Anony-MI
 
+NOTE: The software is currently not working on Slicer versions >= 5. We are working on an update. Please check your MRIs carefully.
+
+
 Anony-Mi is a tool for anonymizing MRIs which preserves the subject's anatomical geometry. It works as a 3D Slicer Extension and can also be used as a standalone command line script.
 
 
