@@ -8,6 +8,8 @@ import subprocess as sp
 import shlex
 import pprint
 from sys import platform
+
+
 #
 # Anonymi
 #
@@ -379,7 +381,6 @@ class AnonymiWidget(ScriptedLoadableModuleWidget):
 #
 
 class AnonymiLogic(ScriptedLoadableModuleLogic):
-
   def getFsEnv(self):
       """Create an environment for AnonyMI where executables are added to the path"""
       base_dir = os.path.split(slicer.modules.anonymi.path)[0]
@@ -431,8 +432,8 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
               if type(cras) == bytes:
                   cras = cras.decode('utf-8')
 
-              if 'NIFTI_UNITS_UNKNOWN' in cras:
-                  print('NIFTI UNITS UNKNOWN - Assumming mm')
+              if ('NIFTI_UNITS_UNKNOWN' in cras) or ('INFO' in cras) or ('niiRead()' in cras):
+                  print('cras info message received, check MRI')
                   cras = cras.split('\n')[-2]
 
               cras = cras.strip('\n').split(' ')
@@ -513,8 +514,8 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         clonedNode.SetName(c)
         subj_control_nodes[c] = clonedNode
 
-    logging.info('--> Running Elastix Registration\n')
-    logging.info('-'*20)
+    print('--> Running Elastix Registration\n')
+    print('-'*20)
 
     elastix_logic = Elastix.ElastixLogic()
     outputVolume = slicer.vtkMRMLScalarVolumeNode()
@@ -542,15 +543,15 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     surf_arr = slicer.util.arrayFromModelPoints(outerSkinModel)
 
     for k in template_control_nodes.keys():
-        numFids = subj_control_nodes[k].GetNumberOfFiducials()
+        numFids = subj_control_nodes[k].GetNumberOfControlPoints()
         for i in range(numFids):
-            world = [0,0,0,1]
-            subj_control_nodes[k].GetNthFiducialWorldCoordinates(i,world)
+            world = [0,0,0]
+            subj_control_nodes[k].GetNthControlPointPositionWorld(i,world)
             print(world)
             proj_coords = self.find_closest_point_coords(surf_arr, world[:3])
-            subj_control_nodes[k].SetNthFiducialPositionFromArray(i, proj_coords)
-    logging.info('-'*20)
-    logging.info('\n--> Control Points Registraion Finished')
+            subj_control_nodes[k].SetNthControlPointPosition(i, proj_coords)
+    print('-'*20)
+    print('\n--> Control Points Registraion Finished')
 
     self.subj_control_nodes = subj_control_nodes
     slicer.mrmlScene.RemoveNode(outputVolume)
@@ -592,7 +593,7 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
   def loadFiles(self):
       try:
-          logging.info('- Loading files')
+          print('- Loading files')
           self.subj_mri_node = slicer.util.loadVolume(self.fnames['mri'], returnNode=True)[1]
           self.subj_trans_node = slicer.util.loadTransform(self.fnames['trans'], returnNode=True)[1]
 
@@ -638,6 +639,14 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         mask_control[min_R:max_R, min_A:max_A, min_S:max_S] = True
     return mask_control
 
+  def apply_mask(self, mask_control, min_R, max_R, min_A, max_A, min_S, max_S, axis_map):
+      slices = [slice(None)] * 3
+      slices[axis_map['R']] = slice(min_R, max_R)
+      slices[axis_map['A']] = slice(min_A, max_A)
+      slices[axis_map['S']] = slice(min_S, max_S)
+      mask_control[tuple(slices)] = True
+      return mask_control
+
   def run(self, inputVolume, outerSkinModel, outerSkullModel, faceControl,
           earRControl, earLControl, isBatch, debug=True):
 
@@ -645,7 +654,6 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     Run the actual algorithm
     """
 
-    logging.info('--> Masking started')
     ## anonymization
 
     # Clone T1
@@ -657,18 +665,18 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
     vclip.clipVolumeWithModel(inputVolume, outerSkinModel, True, 0, False, 255, T1_anon)
 
-    logging.info('-Creating mask')
+    print('-Creating mask')
     mask = volumesLogic.CloneVolume(slicer.mrmlScene, T1_anon, 'mask')
 
     vclip.clipVolumeWithModel(T1_anon, outerSkullModel, False, 255, True, 0, mask)
 
-    logging.info('-Applying mask')
+    print('-Applying mask')
 
     mask_data = slicer.util.arrayFromVolume(mask)
 
     min_rand, max_rand = np.percentile(mask_data[mask_data != 0], [40, 80])
-    logging.info('Min random value: %s' % min_rand)
-    logging.info('Max random value: %s' % max_rand)
+    print('Min random value: %s' % min_rand)
+    print('Max random value: %s' % max_rand)
 
     mask_data = mask_data != 0
 
@@ -683,12 +691,12 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
     vox_coords = {k: [] for k in controls}
 
     for con, nod in zip(controls, [faceControl, earRControl, earLControl]):
-        n_markups = nod.GetNumberOfMarkups()
+        n_markups = nod.GetNumberOfControlPoints()
         for m in np.arange(n_markups):
-            point_Ras = [0, 0, 0, 1]
-            nod.GetNthFiducialWorldCoordinates(m, point_Ras)
+            point_Ras = [0, 0, 0]
+            nod.GetNthControlPointPositionWorld(m, point_Ras)
             coords[con].append(point_Ras)
-            label = nod.GetNthFiducialLabel(m)
+            label = nod.GetNthControlPointLabel(m)
             labels[con].append(label)
 
             # If volume node is transformed, apply that transform to get volume's RAS coordinates
@@ -698,30 +706,29 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
 
             point_Ijk = [0, 0, 0, 1]
             volumeRasToIjk.MultiplyPoint(np.append(point_VolumeRas, 1.0), point_Ijk)
-            point_Ijk = [int(round(c)) for c in point_Ijk[0:3]]
+            point_Ijk = [int(round(c)) if c>0 else 0 for c in point_Ijk[0:3]]
             vox_coords[con].append(point_Ijk)
 
     # create mask
     shape = mask_data.shape
-    logging.info('Data shape: %s %s %s' % shape)
+    print('Data shape: %s %s %s' % shape)
 
     # find volume orientation
     volumeIjkToRas = vtk.vtkMatrix4x4()
     T1_anon.GetIJKToRASMatrix(volumeIjkToRas)
-    # logging.info(volumeIjkToRas)
+    # print(volumeIjkToRas)
     ijk_to_ras = [volumeIjkToRas.GetElement(x, y) for x in range(3) for y in range(3)]
     ijk_to_ras = np.array(ijk_to_ras).reshape(3, 3)
-    ijk_to_ras_round = np.rint(ijk_to_ras)
 
-    #logging.info(ijk_to_ras)
-    #logging.info(ijk_to_ras_round)
-
-    directions = {k: np.argmax(np.abs(ijk_to_ras_round[i, :])) for i, k in enumerate(['R', 'A', 'S'])}
-    signs = {k: ijk_to_ras_round[i, directions[k]] for i, k in enumerate(['R', 'A', 'S'])}
+    directions = {k: np.argmax(np.abs(ijk_to_ras[i, :])) for i, k in enumerate(['R', 'A', 'S'])}
+    signs = {k: np.sign(ijk_to_ras[i, directions[k]]) for i, k in enumerate(['R', 'A', 'S'])}
     order = [k for i in range(3) for k in directions.keys() if directions[k] == i]
-    logging.info('Directions: %s' % directions)
-    logging.info('Signs: %s' % signs)
-    logging.info('Order: %s' % order)
+
+    np_directions = {k: np.argmax(np.abs(ijk_to_ras[i, :])) for i, k in enumerate(['S', 'A', 'R'])}
+
+    print('Directions: %s' % directions)
+    print('Signs: %s' % signs)
+    print('Order: %s' % order)
 
     mask_control = np.zeros(shape, dtype=bool)
 
@@ -732,9 +739,9 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
         min_S = np.min((i, s)) # get span of the mask in the inferior-superior axis
         max_S = np.max((i, s))
 
-        logging.info('Control: %s' % con)
-        logging.info('min s %s' % min_S)
-        logging.info('max s %s' % max_S)
+        print('Control: %s' % con)
+        print('min s %s' % min_S)
+        print('max s %s' % max_S)
 
         if con == 'face':
             r = vox_coords[con][labels[con].index('R')][directions['R']]
@@ -743,18 +750,19 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
             min_R = np.min((r,l)) # get span of the mask in the left-right axis
             max_R = np.max((r,l))
 
-            logging.info('min r %s' % min_R)
-            logging.info('max r %s' % max_R)
+            print('min r %s' % min_R)
+            print('max r %s' % max_R)
 
             if signs['A'] > 0:
                 min_A = min(vox_coords[con][labels[con].index('R')][directions['A']], vox_coords[con][labels[con].index('L')][directions['A']])
-                max_A = shape[directions['A']] # determine from which end and to which point to span in the antero-posterior axis
+                # max_A = shape[directions['A']] # determine from which end and to which point to span in the antero-posterior axis
+                max_A = shape[np_directions['A']] # determine from which end and to which point to span in the antero-posterior axis
             else:
                 max_A = max(vox_coords[con][labels[con].index('R')][directions['A']], vox_coords[con][labels[con].index('L')][directions['A']])
                 min_A = 0
 
-            logging.info('min a %s' % min_A)
-            logging.info('max a %s' % max_A)
+            print('min a %s' % min_A)
+            print('max a %s' % max_A)
 
         else:
             a = vox_coords[con][labels[con].index('A')][directions['A']]
@@ -763,40 +771,45 @@ class AnonymiLogic(ScriptedLoadableModuleLogic):
             min_A = np.min((a, p))
             max_A = np.max((a, p))
 
-            logging.info('min a %s' % min_A)
-            logging.info('max a %s' % max_A)
+            print('min a %s' % min_A)
+            print('max a %s' % max_A)
 
             if ((con == 'earR') & (signs['R'] > 0)) or ((con == 'earL') & (signs['R'] < 0)):
                 min_R = min(vox_coords[con][labels[con].index('A')][directions['R']], vox_coords[con][labels[con].index('P')][directions['R']])
-                max_R = shape[directions['R']]
+                # max_R = shape[directions['R']]
+                max_R = shape[np_directions['R']]
             else:
                 max_R = max(vox_coords[con][labels[con].index('A')][directions['R']], vox_coords[con][labels[con].index('P')][directions['R']])
                 min_R = 0
-            logging.info('min r %s' % min_R)
-            logging.info('max r %s' % max_R)
+
+            print('min r %s' % min_R)
+            print('max r %s' % max_R)
 
         mask_control = self.mask_dims(order, mask_control, min_R, max_R, min_A, max_A, min_S, max_S)
+
+        #mask_control = self.apply_mask(mask_control, min_R, max_R, min_A, max_A, min_S, max_S, directions)
 
     mask_all = np.logical_and(mask_data, mask_control)
     rand_dat = np.random.randint(min_rand, max_rand, mask_all.sum())
 
     T1_anon_data = slicer.util.arrayFromVolume(T1_anon)
-    T1_anon_data[mask_all] = rand_dat
+    T1_anon_data[mask_all] = rand_dat.astype(T1_anon_data.dtype)
 
     T1_anon.Modified()
 
     if isBatch:
         fname_spl = os.path.split(self.fnames['mri'])
-        new_fname = fname_spl[-1].replace(self.subj, self.subj + '_anonymi')
-        new_fname, ext = os.path.splitext(new_fname)
-        fname_save = os.path.join(fname_spl[0], new_fname + '.nii')
+        # new_fname = fname_spl[-1].replace(self.subj, self.subj + '_anonymi')
+        # new_fname, ext = os.path.splitext(new_fname)
+        new_fname = self.subj + '_anonymy.nii'
+        fname_save = os.path.join(fname_spl[0], new_fname)
 
         slicer.util.saveNode(T1_anon, fname_save)
     if not debug:
         slicer.mrmlScene.RemoveNode(mask)
     self.subj_mri_anon_node = T1_anon
     slicer.util.setSliceViewerLayers(background=T1_anon)
-    logging.info('--> Processing completed')
+    print('--> Processing completed')
     return True
 
 
@@ -842,10 +855,10 @@ class AnonymiTest(ScriptedLoadableModuleTest):
     for url,name,loader in downloads:
       filePath = slicer.app.temporaryPath + '/' + name
       if not os.path.exists(filePath) or os.stat(filePath).st_size == 0:
-        logging.info('Requesting download %s from %s...\n' % (name, url))
+        print('Requesting download %s from %s...\n' % (name, url))
         urllib.urlretrieve(url, filePath)
       if loader:
-        logging.info('Loading %s...' % (name,))
+        print('Loading %s...' % (name,))
         loader(filePath)
     self.delayDisplay('Finished with download and loading')
 
