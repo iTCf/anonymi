@@ -31,7 +31,7 @@ git clone git@github.com:iTCf/anonymi.git
 
 It requires 3D Slicer (with two extra plug-ins). In order to install [3D Slicer](https://www.slicer.org/) please refer to their to their website. After it is installed, open 3D Slicer and go to the Extensions Manager (View > Extensions Manager). In the "Install Extensions" tab search for the VolumeClip and the SlicerElastix extensions and install them.
 
-The software has been updated to work with 3D Slicer versions > 5 and is no longer compatible with older versions.
+The software has been updated to work with 3D Slicer versions >= 5 and is no longer compatible with older versions.
 
 AnonyMI uses some [Freesurfer](https://surfer.nmr.mgh.harvard.edu/) functions that are already included in it, but require a Freesurfer license to be used. Obtaining a Freesurfer license es free and fast. Fill this [form](https://surfer.nmr.mgh.harvard.edu/registration.html) and you will receive the license via e-mail. Copy the indicated text and put it in a text file inside the Resources folder of AnonyMI once you have downloaded it. If you already have a freesurfer's license, just copy the file.
 
